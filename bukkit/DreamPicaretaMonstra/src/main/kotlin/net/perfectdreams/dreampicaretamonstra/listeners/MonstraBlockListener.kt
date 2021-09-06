@@ -27,7 +27,7 @@ class MonstraBlockListener(val m: DreamPicaretaMonstra) : Listener {
     fun onBreak(e: BlockBreakEvent) {
         val inHand = e.player.inventory.itemInMainHand
 
-        if (inHand.type != Material.DIAMOND_PICKAXE && inHand.type != Material.DIAMOND_SHOVEL) {
+        if (inHand.type != Material.NETHERITE_PICKAXE && inHand.type != Material.DIAMOND_SHOVEL) {
             return
         }
 
@@ -76,7 +76,7 @@ class MonstraBlockListener(val m: DreamPicaretaMonstra) : Listener {
                     if (PlayerUtils.canBreakAt(location, e.player, location.block.type) && (e.player.world.name != "world" || (e.player.world.name == "world" && claim != null))) {
                         if (chance(100.0 / (efficiencyLevel + 1))) {
                             if ((damageable.damage + 1) == inHand.type.maxDurability.toInt()) {
-                                val name = if (heldItemType == Material.DIAMOND_PICKAXE)
+                                val name = if (heldItemType == Material.NETHERITE_PICKAXE)
                                     "picareta monstra"
                                 else
                                     "pá monstra"

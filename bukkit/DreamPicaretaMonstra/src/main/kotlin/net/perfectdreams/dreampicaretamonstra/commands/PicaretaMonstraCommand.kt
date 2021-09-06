@@ -15,7 +15,7 @@ object PicaretaMonstraCommand : DSLCommandBase<DreamPicaretaMonstra> {
         permission = "sparklypower.picaretamonstra"
 
         executes {
-            val picaretaMonstra = ItemStack(Material.DIAMOND_PICKAXE).storeMetadata("isMonsterPickaxe", "true")
+            val picaretaMonstra = ItemStack(Material.NETHERITE_PICKAXE).storeMetadata("isMonsterPickaxe", "true")
                     .rename("§6§lPicareta Monstra")
                     .lore("§6Tá saindo da jaula o monstro!")
 

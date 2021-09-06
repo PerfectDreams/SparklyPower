@@ -69,7 +69,7 @@ class DreamPicaretaMonstra : KotlinPlugin(), Listener {
 	}
 
 	fun isValidForHeldItem(material: Material, block: Block): Boolean {
-		return if (material == Material.DIAMOND_PICKAXE)
+		return if (material == Material.NETHERITE_PICKAXE)
 			isValidMiningBlock(block)
 		else isValidShovellingBlock(block)
 	}
