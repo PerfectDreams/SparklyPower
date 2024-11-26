@@ -1,0 +1,5 @@
+name: DreamTrade
+main: net.perfectdreams.dreamtrade.DreamTrade
+version: 1.0.0
+depend: ["DreamCore", "DreamCorreios", "DreamSonecas"]
+api-version: 1.13

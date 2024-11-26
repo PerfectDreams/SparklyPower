@@ -4,6 +4,9 @@ pluginManagement {
         maven("https://papermc.io/repo/repository/maven-public/")
     }
 }
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+}
 
 
 rootProject.name = "sparklypower-parent"
@@ -111,3 +114,5 @@ include(":velocity:SparklyNeonVelocity")
 
 // ===[ PANTUFA ]===
 include(":pantufa")
+include("bukkit:DreamTrade")
+findProject(":bukkit:DreamTrade")?.name = "DreamTrade"
