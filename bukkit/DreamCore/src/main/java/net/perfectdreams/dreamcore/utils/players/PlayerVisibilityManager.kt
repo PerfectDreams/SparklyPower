@@ -2,12 +2,15 @@ package net.perfectdreams.dreamcore.utils.players
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket
+import net.minecraft.server.level.ServerLevel
 import net.perfectdreams.dreamcore.utils.extensions.sendPacket
+import org.bukkit.craftbukkit.entity.CraftPlayer
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 import java.lang.ref.WeakReference
 import java.util.*
+import kotlin.collections.set
 
 /**
  * Hides a player from the world, but does not hide them from the player list
@@ -31,29 +34,42 @@ class PlayerVisibilityManager(val selfPlayer: Player) {
         return invertedVisibilityEntities[player.uniqueId]?.contains(PlayerVisibilityManager.getPluginWeakReference(plugin)) == true
     }
 
-    fun hidePlayer(plugin: Plugin, player: Player) {
-        // Don't attempt to hide yourself silly
-        if (player == this.selfPlayer)
+    fun hidePlayer(plugin: Plugin, other: Player) {
+        // Don't attempt to hide yourself, silly!
+        if (other == this.selfPlayer)
             return
 
-        val shouldHide = addInvertedVisibility(plugin, player)
+        val shouldHide = addInvertedVisibility(plugin, other)
 
         if (shouldHide) {
-            // Remove the player from our perspective
-            selfPlayer.sendPacket(ClientboundRemoveEntitiesPacket(player.entityId))
+            this.selfPlayer.sendPacket(ClientboundRemoveEntitiesPacket(other.entityId))
         }
     }
 
-    fun showPlayer(plugin: Plugin, player: Player) {
-        // Don't attempt to show yourself silly
-        if (player == this.selfPlayer)
+    fun showPlayer(plugin: Plugin, other: Player) {
+        // Don't attempt to show yourself, silly!
+        if (other == this.selfPlayer)
             return
 
-        val shouldShow = removeInvertedVisibility(plugin, player)
+        val shouldShow = removeInvertedVisibility(plugin, other)
         if (shouldShow) {
-            // TODO: How to unhide the player?
-            // TODO: Maybe do this in a better way...
-            player.playerProfile = player.playerProfile
+            val selfCraftPlayer = (this.selfPlayer as CraftPlayer)
+
+            // This is very confusing but that's how CraftPlayer#showEntity works, we need to copy the code because, by default, it doesn't attempt to "retrack" entities that are already tracked
+            // But for our use case, we NEED to retrack because we aren't untracking on the server
+            val tracker = (selfCraftPlayer.handle.level() as ServerLevel).getChunkSource().chunkMap
+
+            val entry = tracker.entityMap.get(other.entityId)
+
+            // The "!entry.seenBy.contains(this.getHandle().connection)" check is removed
+            if (entry != null) {
+                // We need to do this because the "onPlayerAdd" function is not called if we are already "seeing" the entity
+                // The reason we don't remove it on the "hidePlayer" call, is because the "track" event is only called AFTER the entity is added to the seenBy list
+                entry.seenBy.remove(selfCraftPlayer.handle.connection)
+
+                // Attempt to retrack the tracked entity
+                entry.updatePlayer(selfCraftPlayer.handle)
+            }
         }
     }
 
