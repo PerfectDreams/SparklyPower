@@ -30,10 +30,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZoneOffset
+import java.time.*
 import java.util.*
 import kotlin.time.Duration.Companion.seconds
 
@@ -141,15 +138,22 @@ class DreamVote : KotlinPlugin() {
 				Votes.player eq uuid and (Votes.votedAt greaterEq startOfTheWeek.atStartOfDay()
 					.atZone(TimeUtils.TIME_ZONE)
 					.toInstant()
-					.toEpochMilli())
+					.toEpochMilli()
+				)
 			}.toList()
 		}
 
 		// let's pass through all the votes and check if it's a valid date
 		for (vote in votes) {
-			val voteDate = LocalDate.ofInstant(Instant.ofEpochMilli(vote[Votes.votedAt]), ZoneId.of("America/Sao_Paulo")) // convert it to timestamp
+			val voteDate = LocalDate.ofInstant(
+				Instant.ofEpochMilli(vote[Votes.votedAt]),
+				ZoneId.of("America/Sao_Paulo")
+			) // convert it to timestamp
 
-			if (voteDate.isAfter(startOfTheWeek.minusDays(1)) && voteDate.dayOfWeek != DayOfWeek.SATURDAY && voteDate.dayOfWeek != DayOfWeek.SUNDAY) {
+			val isValidDate = voteDate >= startOfTheWeek && voteDate < startOfTheWeek.plusDays(5)
+			val isWeekend = voteDate.dayOfWeek == DayOfWeek.SATURDAY || voteDate.dayOfWeek == DayOfWeek.SUNDAY
+
+			if (isValidDate && !isWeekend) {
 				votedDays++
 			}
 		}
