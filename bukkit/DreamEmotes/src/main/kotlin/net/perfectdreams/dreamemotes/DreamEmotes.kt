@@ -3,7 +3,6 @@ package net.perfectdreams.dreamemotes
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
 import net.perfectdreams.dreambedrockintegrations.utils.isBedrockClient
 import net.perfectdreams.dreamcore.utils.Databases
@@ -15,12 +14,10 @@ import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamemotes.blockbench.BlockbenchModel
 import net.perfectdreams.dreamemotes.commands.*
 import net.perfectdreams.dreamemotes.config.DreamEmotesConfig
-import net.perfectdreams.dreamemotes.gestures.GestureSkinHeads
 import net.perfectdreams.dreamemotes.gestures.PlayerGesturePlayback
-import net.perfectdreams.dreamemotes.gestures.SparklyGestures
+import net.perfectdreams.dreamemotes.gestures.SparklyGesturesRegistry
 import net.perfectdreams.dreamemotes.gestures.SparklyGesturesManager
 import net.perfectdreams.dreamemotes.tables.CachedGestureSkinHeads
-import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -28,7 +25,6 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.event.player.PlayerToggleSneakEvent
-import org.bukkit.event.vehicle.VehicleExitEvent
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
@@ -36,19 +32,14 @@ import java.io.File
 class DreamEmotes : KotlinPlugin(), Listener {
 	val activeGesturePlaybacks = mutableMapOf<Player, PlayerGesturePlayback>()
 
+	val gesturesFolder = File(this.dataFolder, "gestures")
+	val modelsFolder = File(this.dataFolder, "models")
 	val orbitalCameras = mutableMapOf<Player, OrbitalCamera>()
-	lateinit var sparklyGestures: SparklyGestures
 	val gesturesManager = SparklyGesturesManager(this)
 	lateinit var config: DreamEmotesConfig
 
 	override fun softEnable() {
-		this.config = Yaml.default.decodeFromString<DreamEmotesConfig>(File(dataFolder, "config.yml").readText())
-
-		val blockbenchModel = Json {
-			ignoreUnknownKeys = true
-		}.decodeFromString<BlockbenchModel>(File(dataFolder, "player_v3.bbmodel").readText())
-
-		sparklyGestures = SparklyGestures(blockbenchModel)
+		reload()
 
 		transaction(Databases.databaseNetwork) {
 			SchemaUtils.createMissingTablesAndColumns(CachedGestureSkinHeads)
@@ -56,6 +47,7 @@ class DreamEmotes : KotlinPlugin(), Listener {
 
 		registerCommand(GestureCommand(this))
 		registerCommand(TestGestureCommand(this))
+		registerCommand(DreamEmotesCommand(this))
 		// registerCommand(OrbitalCommand(this))
 
 		registerEvents(this)
@@ -80,6 +72,12 @@ class DreamEmotes : KotlinPlugin(), Listener {
 			.forEach {
 				it.stop()
 			}
+	}
+
+	fun reload() {
+		this.config = Yaml.default.decodeFromString<DreamEmotesConfig>(File(dataFolder, "config.yml").readText())
+
+		SparklyGesturesRegistry.reload(this)
 	}
 
 	@EventHandler

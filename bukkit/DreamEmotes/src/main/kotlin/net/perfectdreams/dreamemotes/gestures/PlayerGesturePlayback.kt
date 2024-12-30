@@ -1,5 +1,6 @@
 package net.perfectdreams.dreamemotes.gestures
 
+import com.destroystokyo.paper.profile.ProfileProperty
 import net.minecraft.network.protocol.game.*
 import net.perfectdreams.dreamcore.DreamCore
 import net.perfectdreams.dreamcore.utils.adventure.append
@@ -13,13 +14,14 @@ import net.perfectdreams.dreamemotes.blockbench.BlockbenchModel
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.NamespacedKey
 import org.bukkit.craftbukkit.entity.CraftPlayer
 import org.bukkit.entity.*
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.inventory.meta.SkullMeta
 import org.bukkit.profile.PlayerTextures
 import org.joml.Matrix4f
-import org.joml.Quaternionf
 import org.joml.Vector3f
 import java.util.*
 import kotlin.math.abs
@@ -29,7 +31,7 @@ class PlayerGesturePlayback(
     val m: DreamEmotes,
     val player: Player,
     val blockbenchModel: BlockbenchModel,
-    val sparklyGesture: SparklyGestures.SparklyGesture,
+    val sparklyGesture: SparklyGestureData,
     val gestureSkinHeads: GestureSkinHeads,
     val skinModel: PlayerTextures.SkinModel,
     val location: Location,
@@ -38,30 +40,62 @@ class PlayerGesturePlayback(
 
     val orbitalCamera: OrbitalCamera,
     val cameraEntity: Entity,
+    val soundEmitter: Entity,
     val entityToBeMountedNetworkId: Int,
 ) {
     companion object {
         const val TARGET_PLAYBACK_SPEED_TICKS = 1L
         const val INTERPOLATION_DURATION_TICKS = (TARGET_PLAYBACK_SPEED_TICKS + 1).toInt()
+        const val TARGET_SCALE = 0.06f
+        private val DEFAULT_ELEMENT_NAMES = setOf(
+            "hat",
+            "head",
+
+            "torso_top",
+            "torso_bottom",
+
+            "leg_left_top",
+            "leg_left_bottom",
+
+            "leg_right_top",
+            "leg_right_bottom",
+
+            "arm_left_top_classic",
+            "arm_left_top_slim",
+
+            "arm_left_bottom_classic",
+            "arm_left_bottom_slim",
+
+            "arm_right_top_classic",
+            "arm_right_top_slim",
+
+            "arm_right_bottom_classic",
+            "arm_right_bottom_slim"
+        )
     }
 
     var ticksLived = 0
     var relativeTicksCurrentGestureLived = 0
     val elementIdToEntities = mutableMapOf<UUID, Display>()
     val elementIdToMatrix4f = mutableMapOf<UUID, Matrix4f>()
-    var currentActionIdx = 0
+    // When starting, the current action is ALWAYS the first action on the list
+    var currentAction = sparklyGesture.actions.first()
+    var progressTimelineWithoutLooping = false
 
     fun tick() {
-        val currentAction = sparklyGesture.actions[currentActionIdx]
+        val animation = blockbenchModel.animations.first { it.name == currentAction.blockbenchAnimation }
 
-        val animation = when (currentAction) {
-            is SparklyGestures.GestureAction.Play -> currentAction.animation
-            is SparklyGestures.GestureAction.PlayAndHold -> currentAction.animation
-            is SparklyGestures.GestureAction.PlayAndLoop -> currentAction.animation
-        }
+        val animationDuration = animation.length
+        val animationDurationInTicks = (animationDuration * 20).toInt()
 
         // This is the ELAPSED TIME of the animation
-        val blockbenchTime = (relativeTicksCurrentGestureLived / 20.0)
+        val blockbenchTime = if (animationDurationInTicks == 0 || progressTimelineWithoutLooping) {
+            (relativeTicksCurrentGestureLived / 20.0)
+        } else {
+            ((relativeTicksCurrentGestureLived % animationDurationInTicks) / 20.0)
+        }
+
+        // Bukkit.broadcastMessage("Blockbench Time: $blockbenchTime - RelTicks: $relativeTicksCurrentGestureLived")
 
         // TODO: The shadow probably needs to follow the player...
         /* val shadow = player.world.spawn(
@@ -72,11 +106,6 @@ class PlayerGesturePlayback(
             it.isShadowed = true
             it.shadowRadius = 0.5f
         } */
-
-        val TARGET_SCALE = 0.06f
-
-        val animationDuration = animation.length
-        val animationDurationInTicks = (animationDuration * 20).toInt()
 
         fun processOutliner(
             outline: BlockbenchModel.Outliner,
@@ -106,10 +135,43 @@ class PlayerGesturePlayback(
             var outlineRotationY = outline.rotation[1]
             var outlineRotationZ = outline.rotation[2]
 
+            var outlineScaleX = 1.0
+            var outlineScaleY = 1.0
+            var outlineScaleZ = 1.0
+
             val animator = animation.animators[outline.uuid.toString()]
 
             fun easeLinear(start: Double, end: Double, percent: Double): Double {
                 return start + (end - start) * percent
+            }
+
+            // Interpolates a point using Catmull-Rom spline between four points
+            fun catmullRomInterpolation(p0: Vector3f, p1: Vector3f, p2: Vector3f, p3: Vector3f, t: Double): Vector3f {
+                val t2 = t * t
+                val t3 = t2 * t
+
+                val x = 0.5 * (
+                        (2 * p1.x) +
+                                (-p0.x + p2.x) * t +
+                                (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+                                (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
+                        )
+
+                val y = 0.5 * (
+                        (2 * p1.y) +
+                                (-p0.y + p2.y) * t +
+                                (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+                                (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
+                        )
+
+                val z = 0.5 * (
+                        (2 * p1.z) +
+                                (-p0.z + p2.z) * t +
+                                (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2 +
+                                (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3
+                        )
+
+                return Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
             }
 
             // TODO: The keyframe values are based from the DEFAULT POSE, FIX THIS
@@ -133,8 +195,11 @@ class PlayerGesturePlayback(
                     val futureKeyframes = sortedKeyframes.filter { it.time > blockbenchTime }
 
                     // Find the current and next keyframes
+                    val previousKeyframe = availableKeyframes.getOrNull(futureKeyframes.size - 2)
                     val currentKeyframe = availableKeyframes.lastOrNull()
                     val nextKeyframe = futureKeyframes.firstOrNull()
+                    val nextNextKeyframe = futureKeyframes.getOrNull(1)
+
 
                     // player.sendMessage("[BB Time: $blockbenchTime] Current Keyframe: $currentKeyframe")
                     // player.sendMessage("[BB Time: $blockbenchTime] Next Keyframe: $nextKeyframe")
@@ -143,26 +208,53 @@ class PlayerGesturePlayback(
                         val rotCur = currentKeyframe.dataPoints.first()
                         val rotNext = nextKeyframe.dataPoints.first()
 
-                        val relStart = blockbenchTime - currentKeyframe.time
+                        val relCurrentTime = blockbenchTime - currentKeyframe.time
+                        val relEnd = nextKeyframe.time - currentKeyframe.time
+                        val progress = relCurrentTime / relEnd
 
-                        val progress = relStart / (nextKeyframe.time - currentKeyframe.time)
                         // player.sendMessage("[BB Time: $blockbenchTime] Animator is not null! Progress is ${progress}")
 
-                        outlineRotationX = easeLinear(
-                            outlineRotationX - (rotCur.x),
-                            outlineRotationX - (rotNext.x),
-                            progress
-                        )
-                        outlineRotationY = easeLinear(
-                            outlineRotationY - (rotCur.y),
-                            outlineRotationY - (rotNext.y),
-                            progress
-                        )
-                        outlineRotationZ = easeLinear(
-                            outlineRotationZ + (rotCur.z),
-                            outlineRotationZ + (rotNext.z),
-                            progress
-                        )
+                        if (currentKeyframe.interpolation == "catmullrom") {
+                            val previousKeyframeDataPoint = previousKeyframe?.dataPoints?.first() ?: rotCur
+                            val nextNextKeyframeDataPoint = nextNextKeyframe?.dataPoints?.first() ?: rotNext
+
+                            // The prevVec3f and endEndVec3f are the catmullrom's "control points", they control how the curvature works
+                            // In Blockbench, the control points are the previous keyframe and the next keyframe
+                            val prevVec3f = Vector3f(previousKeyframeDataPoint.x.toFloat(), previousKeyframeDataPoint.y.toFloat(), previousKeyframeDataPoint.z.toFloat())
+                            val startVec3f = Vector3f(rotCur.x.toFloat(), rotCur.y.toFloat(), rotCur.z.toFloat())
+                            val endVec3f = Vector3f(rotNext.x.toFloat(), rotNext.y.toFloat(), rotNext.z.toFloat())
+                            val endEndVec3f = Vector3f(nextNextKeyframeDataPoint.x.toFloat(), nextNextKeyframeDataPoint.y.toFloat(), nextNextKeyframeDataPoint.z.toFloat())
+
+                            // p0 and p3 are the control points
+                            val interpolationResult = catmullRomInterpolation(
+                                prevVec3f,
+                                startVec3f,
+                                endVec3f,
+                                endEndVec3f,
+                                progress
+                            )
+
+                            outlineRotationX -= interpolationResult.x.toDouble()
+                            outlineRotationY -= interpolationResult.y.toDouble()
+                            outlineRotationZ += interpolationResult.z.toDouble()
+                        } else {
+                            outlineRotationX = easeLinear(
+                                outlineRotationX - (rotCur.x),
+                                outlineRotationX - (rotNext.x),
+                                progress
+                            )
+                            outlineRotationY = easeLinear(
+                                outlineRotationY - (rotCur.y),
+                                outlineRotationY - (rotNext.y),
+                                progress
+                            )
+                            outlineRotationZ = easeLinear(
+                                outlineRotationZ + (rotCur.z),
+                                outlineRotationZ + (rotNext.z),
+                                progress
+                            )
+                        }
+
                         // player.sendMessage("[BB Time: $blockbenchTime] outlineRotationX (eased): $outlineRotationX")
                         // player.sendMessage("[BB Time: $blockbenchTime] outlineRotationY (eased): $outlineRotationY")
                         // player.sendMessage("[BB Time: $blockbenchTime] outlineRotationZ (eased): $outlineRotationZ")
@@ -193,6 +285,90 @@ class PlayerGesturePlayback(
                     val futureKeyframes = sortedKeyframes.filter { it.time > blockbenchTime }
 
                     // Find the current and next keyframes
+                    val previousKeyframe = availableKeyframes.getOrNull(futureKeyframes.size - 2)
+                    val currentKeyframe = availableKeyframes.lastOrNull()
+                    val nextKeyframe = futureKeyframes.firstOrNull()
+                    val nextNextKeyframe = futureKeyframes.getOrNull(1)
+
+                    if (currentKeyframe != null && nextKeyframe != null) {
+                        val rotCur = currentKeyframe.dataPoints.first()
+                        val rotNext = nextKeyframe.dataPoints.first()
+
+                        val relCurrentTime = blockbenchTime - currentKeyframe.time
+                        val relEnd = nextKeyframe.time - currentKeyframe.time
+                        val progress = relCurrentTime / relEnd
+
+                        // Bukkit.broadcastMessage("Current Progress: $progress")
+                        // player.sendMessage("Current Keyframe: $currentKeyframe")
+                        // player.sendMessage("Next Keyframe: $nextKeyframe")
+                        // player.sendMessage("Animator is not null! Progress is ${(currentKeyframe.time + relStart) / nextKeyframe.time}")
+
+                        if (currentKeyframe.interpolation == "catmullrom") {
+                            val previousKeyframeDataPoint = previousKeyframe?.dataPoints?.first() ?: rotCur
+                            val nextNextKeyframeDataPoint = nextNextKeyframe?.dataPoints?.first() ?: rotNext
+
+                            // The prevVec3f and endEndVec3f are the catmullrom's "control points", they control how the curvature works
+                            // In Blockbench, the control points are the previous keyframe and the next keyframe
+                            val prevVec3f = Vector3f(previousKeyframeDataPoint.x.toFloat(), previousKeyframeDataPoint.y.toFloat(), previousKeyframeDataPoint.z.toFloat())
+                            val startVec3f = Vector3f(rotCur.x.toFloat(), rotCur.y.toFloat(), rotCur.z.toFloat())
+                            val endVec3f = Vector3f(rotNext.x.toFloat(), rotNext.y.toFloat(), rotNext.z.toFloat())
+                            val endEndVec3f = Vector3f(nextNextKeyframeDataPoint.x.toFloat(), nextNextKeyframeDataPoint.y.toFloat(), nextNextKeyframeDataPoint.z.toFloat())
+
+                            // p0 and p3 are the control points
+                            val interpolationResult = catmullRomInterpolation(
+                                prevVec3f,
+                                startVec3f,
+                                endVec3f,
+                                endEndVec3f,
+                                progress
+                            )
+
+                            offsetX -= interpolationResult.x
+                            offsetY += interpolationResult.y
+                            offsetZ += interpolationResult.z
+                        } else {
+                            offsetX -= easeLinear(
+                                rotCur.x,
+                                rotNext.x,
+                                progress
+                            )
+                            offsetY += easeLinear(
+                                rotCur.y,
+                                rotNext.y,
+                                progress
+                            )
+                            offsetZ += easeLinear(
+                                rotCur.z,
+                                rotNext.z,
+                                progress
+                            )
+                        }
+                        // player.sendMessage("outlineOriginX (eased): $outlineOriginX")
+                        // player.sendMessage("outlineOriginY (eased): $outlineOriginY")
+                        // player.sendMessage("outlineOriginZ (eased): $outlineOriginZ")
+                    } else if (currentKeyframe != null) {
+                        val rotCur = currentKeyframe.dataPoints.first()
+
+                        // hold last keyframe
+                        offsetX -= rotCur.x
+                        offsetY += rotCur.y
+                        offsetZ += rotCur.z
+                    }
+                }
+
+                run {
+                    // Sort keyframes by their time (I'm not sure WHAT is the order that Blockbench uses, sometimes it is end to start, sometimes it is start to end)
+                    // So we'll sort it ourselves
+                    val sortedKeyframes = animator.keyframes.filterIsInstance<BlockbenchModel.Keyframe.Scale>()
+                        .sortedBy { it.time }
+
+                    if (sortedKeyframes.isEmpty())
+                        return@run
+
+                    val availableKeyframes = sortedKeyframes.filter { blockbenchTime >= it.time }
+                    val futureKeyframes = sortedKeyframes.filter { it.time > blockbenchTime }
+
+                    // Find the current and next keyframes
                     val currentKeyframe = availableKeyframes.lastOrNull()
                     val nextKeyframe = futureKeyframes.firstOrNull()
 
@@ -205,17 +381,17 @@ class PlayerGesturePlayback(
                         // player.sendMessage("Current Keyframe: $currentKeyframe")
                         // player.sendMessage("Next Keyframe: $nextKeyframe")
                         // player.sendMessage("Animator is not null! Progress is ${(currentKeyframe.time + relStart) / nextKeyframe.time}")
-                        offsetX -= easeLinear(
+                        outlineScaleX *= easeLinear(
                             rotCur.x,
                             rotNext.x,
                             (currentKeyframe.time + relStart) / nextKeyframe.time
                         )
-                        offsetY += easeLinear(
+                        outlineScaleY *= easeLinear(
                             rotCur.y,
                             rotNext.y,
                             (currentKeyframe.time + relStart) / nextKeyframe.time
                         )
-                        offsetZ += easeLinear(
+                        outlineScaleZ *= easeLinear(
                             rotCur.z,
                             rotNext.z,
                             (currentKeyframe.time + relStart) / nextKeyframe.time
@@ -227,9 +403,9 @@ class PlayerGesturePlayback(
                         val rotCur = currentKeyframe.dataPoints.first()
 
                         // hold last keyframe
-                        offsetX -= rotCur.x
-                        offsetY += rotCur.y
-                        offsetZ += rotCur.z
+                        outlineScaleX *= rotCur.x
+                        outlineScaleY *= rotCur.y
+                        outlineScaleZ *= rotCur.z
                     }
                 }
             }
@@ -264,6 +440,8 @@ class PlayerGesturePlayback(
             matrix4f.rotateZ(outlineRotationZRad.toFloat()) // Rotate around Z-axis
             matrix4f.rotateY(outlineRotationYRad.toFloat()) // Rotate around Y-axis
             matrix4f.rotateX(outlineRotationXRad.toFloat()) // Rotate around X-axis
+
+            matrix4f.scale(outlineScaleX.toFloat(), outlineScaleY.toFloat(), outlineScaleZ.toFloat())
 
             matrix4f.translate(-outlineOriginX.toFloat(), -outlineOriginY.toFloat(), -outlineOriginZ.toFloat())
 
@@ -342,6 +520,16 @@ class PlayerGesturePlayback(
                         itemScaleY,
                         itemScaleZ,
                     )
+
+                // This is the custom gesture prop mapper
+                val propMapper = sparklyGesture.props[element.name]
+                if (propMapper != null) {
+                    when (propMapper) {
+                        is PropMapper.ItemDisplay -> {
+                            displayTransformationMatrix.scale(propMapper.scaleX, propMapper.scaleY, propMapper.scaleZ)
+                        }
+                    }
+                }
 
                 val currentTransform = elementIdToMatrix4f[element.uuid]
                 elementIdToMatrix4f[element.uuid] = displayTransformationMatrix
@@ -422,87 +610,138 @@ class PlayerGesturePlayback(
                             it.isPersistent = false
                         }
                     } else {
-                        location.world.spawn(
-                            // We INTENTIONALLY use topY instead of centerY, because Minecraft scales based on the item's TOP LOCATION, not the CENTER
-                            sourceLocation, // location.clone().add(centerX, bottomY, centerZ),
-                            ItemDisplay::class.java
-                        ) {
-                            // A normal player head item has 0.5 scale in Blockbench
-                            // A cube is 2x2x2 in Blockbench
-                            it.interpolationDelay = -1
-                            // We do 2 interpolation duration because 1 feels like it doesn't interpolate anything at all
-                            // We should always keep this (delay between frames) + 1
+                        if (propMapper != null) {
+                            // Custom prop of this emote
+                            when (propMapper) {
+                                is PropMapper.ItemDisplay -> {
+                                    location.world.spawn(
+                                        // We INTENTIONALLY use topY instead of centerY, because Minecraft scales based on the item's TOP LOCATION, not the CENTER
+                                        sourceLocation, // location.clone().add(centerX, bottomY, centerZ),
+                                        ItemDisplay::class.java
+                                    ) {
+                                        // A normal player head item has 0.5 scale in Blockbench
+                                        // A cube is 2x2x2 in Blockbench
+                                        it.interpolationDelay = -1
+                                        // We do 2 interpolation duration because 1 feels like it doesn't interpolate anything at all
+                                        // We should always keep this (delay between frames) + 1
 
-                            it.interpolationDuration = INTERPOLATION_DURATION_TICKS
-                            it.teleportDuration = 1
-                            it.isPersistent = false
+                                        it.interpolationDuration = INTERPOLATION_DURATION_TICKS
+                                        it.teleportDuration = 1
+                                        it.isPersistent = false
 
-                            // if (true || outline.name == "arm_right") {
-                            // If we use outlineRotationX.toFloat, it does work, but why that works while toRadians is borked??
-                            // player.sendMessage("outlineRotationXRad: $outlineRotationXRad")
-                            // player.sendMessage("outlineRotationYRad: $outlineRotationYRad")
-                            // player.sendMessage("outlineRotationZRad: $outlineRotationZRad")
+                                        it.setTransformationMatrix(displayTransformationMatrix)
 
-                            it.setTransformationMatrix(displayTransformationMatrix)
+                                        it.setItemStack(
+                                            ItemStack.of(propMapper.item.material)
+                                                .meta<ItemMeta> {
+                                                    this.itemModel = NamespacedKey.fromString(propMapper.item.itemModel)
 
-                            val itemStack = if (element.name != "hat") {
-                                ItemStack.of(Material.PLAYER_HEAD)
-                                    .meta<SkullMeta> {
-                                        when (element.name) {
-                                            "torso_top" -> {
-                                                this.playerProfile = gestureSkinHeads.torsoTop
-                                            }
+                                                    if (this is SkullMeta) {
+                                                        val playerProfileSkin = propMapper.item.playerProfileSkin
 
-                                            "torso_bottom" -> {
-                                                this.playerProfile = gestureSkinHeads.torsoBottom
-                                            }
+                                                        if (playerProfileSkin != null) {
+                                                            val profile = Bukkit.createProfile(UUID(0L, 0L), "")
+                                                            profile.setProperty(
+                                                                ProfileProperty(
+                                                                    "textures",
+                                                                    playerProfileSkin.value,
+                                                                    playerProfileSkin.signature
+                                                                )
+                                                            )
 
-                                            "leg_left_top" -> {
-                                                this.playerProfile = gestureSkinHeads.legLeftTop
-                                            }
-
-                                            "leg_left_bottom" -> {
-                                                this.playerProfile = gestureSkinHeads.legLeftBottom
-                                            }
-
-                                            "leg_right_top" -> {
-                                                this.playerProfile = gestureSkinHeads.legRightTop
-                                            }
-
-                                            "leg_right_bottom" -> {
-                                                this.playerProfile = gestureSkinHeads.legRightBottom
-                                            }
-
-                                            "arm_left_top_classic", "arm_left_top_slim" -> {
-                                                this.playerProfile = gestureSkinHeads.armLeftTop
-                                            }
-
-                                            "arm_left_bottom_classic", "arm_left_bottom_slim" -> {
-                                                this.playerProfile = gestureSkinHeads.armLeftBottom
-                                            }
-
-                                            "arm_right_top_classic", "arm_right_top_slim" -> {
-                                                this.playerProfile = gestureSkinHeads.armRightTop
-                                            }
-
-                                            "arm_right_bottom_classic", "arm_right_bottom_slim" -> {
-                                                this.playerProfile = gestureSkinHeads.armRightBottom
-                                            }
-
-                                            else -> {
-                                                this.playerProfile = player.playerProfile
-                                            }
-                                        }
+                                                            this.playerProfile = profile
+                                                        }
+                                                    }
+                                                }
+                                        )
                                     }
-                            } else {
-                                // TODO: Do NOT do it like this
-                                player.inventory.helmet
+                                }
                             }
+                        } else {
+                            location.world.spawn(
+                                // We INTENTIONALLY use topY instead of centerY, because Minecraft scales based on the item's TOP LOCATION, not the CENTER
+                                sourceLocation, // location.clone().add(centerX, bottomY, centerZ),
+                                ItemDisplay::class.java
+                            ) {
+                                // A normal player head item has 0.5 scale in Blockbench
+                                // A cube is 2x2x2 in Blockbench
+                                it.interpolationDelay = -1
+                                // We do 2 interpolation duration because 1 feels like it doesn't interpolate anything at all
+                                // We should always keep this (delay between frames) + 1
 
-                            it.setItemStack(itemStack)
+                                it.interpolationDuration = INTERPOLATION_DURATION_TICKS
+                                it.teleportDuration = 1
+                                it.isPersistent = false
 
-                            if (element.name == "hat") {
-                                it.itemDisplayTransform = ItemDisplay.ItemDisplayTransform.HEAD
+                                // if (true || outline.name == "arm_right") {
+                                // If we use outlineRotationX.toFloat, it does work, but why that works while toRadians is borked??
+                                // player.sendMessage("outlineRotationXRad: $outlineRotationXRad")
+                                // player.sendMessage("outlineRotationYRad: $outlineRotationYRad")
+                                // player.sendMessage("outlineRotationZRad: $outlineRotationZRad")
+
+                                if (element.name in DEFAULT_ELEMENT_NAMES) {
+                                    val itemStack = if (element.name != "hat") {
+                                        ItemStack.of(Material.PLAYER_HEAD)
+                                            .meta<SkullMeta> {
+                                                when (element.name) {
+                                                    "torso_top" -> {
+                                                        this.playerProfile = gestureSkinHeads.torsoTop
+                                                    }
+
+                                                    "torso_bottom" -> {
+                                                        this.playerProfile = gestureSkinHeads.torsoBottom
+                                                    }
+
+                                                    "leg_left_top" -> {
+                                                        this.playerProfile = gestureSkinHeads.legLeftTop
+                                                    }
+
+                                                    "leg_left_bottom" -> {
+                                                        this.playerProfile = gestureSkinHeads.legLeftBottom
+                                                    }
+
+                                                    "leg_right_top" -> {
+                                                        this.playerProfile = gestureSkinHeads.legRightTop
+                                                    }
+
+                                                    "leg_right_bottom" -> {
+                                                        this.playerProfile = gestureSkinHeads.legRightBottom
+                                                    }
+
+                                                    "arm_left_top_classic", "arm_left_top_slim" -> {
+                                                        this.playerProfile = gestureSkinHeads.armLeftTop
+                                                    }
+
+                                                    "arm_left_bottom_classic", "arm_left_bottom_slim" -> {
+                                                        this.playerProfile = gestureSkinHeads.armLeftBottom
+                                                    }
+
+                                                    "arm_right_top_classic", "arm_right_top_slim" -> {
+                                                        this.playerProfile = gestureSkinHeads.armRightTop
+                                                    }
+
+                                                    "arm_right_bottom_classic", "arm_right_bottom_slim" -> {
+                                                        this.playerProfile = gestureSkinHeads.armRightBottom
+                                                    }
+
+                                                    else -> {
+                                                        this.playerProfile = player.playerProfile
+                                                    }
+                                                }
+                                            }
+                                    } else {
+                                        // TODO: Do NOT do it like this
+                                        player.inventory.helmet
+                                    }
+
+                                    it.setItemStack(itemStack)
+
+                                    if (element.name == "hat") {
+                                        it.itemDisplayTransform = ItemDisplay.ItemDisplayTransform.HEAD
+                                    }
+                                }
+
+                                it.setTransformationMatrix(displayTransformationMatrix)
                             }
                         }
                     }
@@ -527,37 +766,55 @@ class PlayerGesturePlayback(
             processOutliner(outline, Matrix4f().scale(TARGET_SCALE).rotateY(Math.toRadians(targetYaw.toDouble()).toFloat()), 0.0, 0.0, 0.0)
         }
 
-        val additionalKeyframes = currentAction.sidecarKeyframes[relativeTicksCurrentGestureLived]
-
-        if (additionalKeyframes != null) {
-            for (keyframe in additionalKeyframes) {
-                location.world.playSound(location, keyframe.soundKey, keyframe.volume, keyframe.pitch)
+        for (tickActions in currentAction.onTick) {
+            if (tickActions.tick == relativeTicksCurrentGestureLived) {
+                for (action in tickActions.actions) {
+                    when (action) {
+                        is GestureAction.TickAction.PlaySound -> {
+                            soundEmitter.world.playSound(
+                                soundEmitter,
+                                action.soundKey,
+                                action.volume,
+                                action.pitch
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        currentAction.onKeyframe.invoke(ticksLived, player)
+        // We need to tick it BEFORE processing end action events
+        this.relativeTicksCurrentGestureLived++
 
-        if (animationDurationInTicks == relativeTicksCurrentGestureLived) {
-            when (currentAction) {
-                is SparklyGestures.GestureAction.Play -> {
-                    if (currentActionIdx + 1 == sparklyGesture.actions.size) {
-                        // It's joever
-                        m.gesturesManager.stopGesturePlayback(player)
-                    } else {
-                        // Reset and move to the next action!
-                        relativeTicksCurrentGestureLived = 0
-                        currentActionIdx++
-                    }
+        val totalRepeats = if (animationDurationInTicks == 0) {
+            relativeTicksCurrentGestureLived
+        } else {
+            relativeTicksCurrentGestureLived / animationDurationInTicks
+        }
+
+        // Bukkit.broadcastMessage("Total repeats: $totalRepeats")
+
+        if (totalRepeats >= currentAction.loopCount) {
+            // It's finished, let's execute the finish action!
+            when (val onFinishAction = this.currentAction.onFinish) {
+                is GestureAction.OnFinishAction.JumpToAction -> {
+                    // Reset and jump to the new action!
+                    this.relativeTicksCurrentGestureLived = 0
+                    this.currentAction = sparklyGesture.actions.first { it.name == onFinishAction.name }
+                    this.progressTimelineWithoutLooping = false
                 }
-                is SparklyGestures.GestureAction.PlayAndHold -> {
-                    relativeTicksCurrentGestureLived = animationDurationInTicks
+                GestureAction.OnFinishAction.HoldAction -> {
+                    // We don't actually need to do anything
+                    this.progressTimelineWithoutLooping = true
+                    return
                 }
-                is SparklyGestures.GestureAction.PlayAndLoop -> {
-                    relativeTicksCurrentGestureLived = 0
+                GestureAction.OnFinishAction.StopGestureAction -> {
+                    // It's so joever
+                    m.gesturesManager.stopGesturePlayback(player)
+                    this.progressTimelineWithoutLooping = false
+                    return
                 }
             }
-        } else {
-            relativeTicksCurrentGestureLived++
         }
 
         // player.sendMessage("Finished!")
@@ -608,5 +865,6 @@ class PlayerGesturePlayback(
 
         // shadow.remove()
         cameraEntity.remove()
+        soundEmitter.remove()
     }
 }

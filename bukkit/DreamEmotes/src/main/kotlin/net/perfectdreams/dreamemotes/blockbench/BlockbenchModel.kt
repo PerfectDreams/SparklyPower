@@ -75,7 +75,8 @@ data class BlockbenchModel(
             val channel: String,
             @SerialName("data_points")
             val dataPoints: List<VectorDataPoint>,
-            val time: Double
+            val time: Double,
+            val interpolation: String,
         ) : Keyframe()
 
         @Serializable
@@ -83,7 +84,17 @@ data class BlockbenchModel(
             val channel: String,
             @SerialName("data_points")
             val dataPoints: List<VectorDataPoint>,
-            val time: Double
+            val time: Double,
+            val interpolation: String,
+        ) : Keyframe()
+
+        @Serializable
+        data class Scale(
+            val channel: String,
+            @SerialName("data_points")
+            val dataPoints: List<VectorDataPoint>,
+            val time: Double,
+            val interpolation: String,
         ) : Keyframe()
 
         @Serializable
@@ -91,7 +102,8 @@ data class BlockbenchModel(
             val channel: String,
             @SerialName("data_points")
             val dataPoints: List<SoundDataPoint>,
-            val time: Double
+            val time: Double,
+            val interpolation: String,
         ) : Keyframe()
     }
 
@@ -149,6 +161,7 @@ object KeyframeSerializer : JsonContentPolymorphicSerializer<BlockbenchModel.Key
         return when {
             channel == "position" -> BlockbenchModel.Keyframe.Position.serializer()
             channel == "rotation" -> BlockbenchModel.Keyframe.Rotation.serializer()
+            channel == "scale" -> BlockbenchModel.Keyframe.Scale.serializer()
             channel == "sound" -> BlockbenchModel.Keyframe.Sound.serializer()
             else -> error("I don't know how to parse this")
         }

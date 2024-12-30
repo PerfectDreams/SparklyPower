@@ -24,13 +24,11 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.phys.Vec3
 import net.perfectdreams.dreambedrockintegrations.utils.isBedrockClient
-import net.perfectdreams.dreamcore.DreamCore
 import net.perfectdreams.dreamcore.utils.Databases
 import net.perfectdreams.dreamcore.utils.DreamUtils
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.extensions.hidePlayerWithoutRemovingFromPlayerList
 import net.perfectdreams.dreamcore.utils.extensions.sendPacket
-import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamemotes.DreamEmotes
 import net.perfectdreams.dreamemotes.OrbitalCamera
 import net.perfectdreams.dreamemotes.StatueBase
@@ -421,7 +419,7 @@ class SparklyGesturesManager(val m: DreamEmotes) {
         targetLocation: Location,
         gestureSkinHeads: GestureSkinHeads,
         blockbenchModel: BlockbenchModel,
-        animation: SparklyGestures.SparklyGesture
+        animation: SparklyGestureData
     ) {
         stopGesturePlayback(player)
 
@@ -492,6 +490,15 @@ class SparklyGesturesManager(val m: DreamEmotes) {
 
         m.orbitalCameras[player] = orbitalCamera
 
+        val soundEmitterEntity = player.world.spawn(
+            targetLocation,
+            TextDisplay::class.java
+        ) {
+            // it.text(textComponent("*câmera*"))
+            it.teleportDuration = 1
+            it.isPersistent = false
+        }
+
         Bukkit.getOnlinePlayers()
             .forEach {
                 if (!it.isBedrockClient) {
@@ -511,6 +518,7 @@ class SparklyGesturesManager(val m: DreamEmotes) {
             targetYaw,
             orbitalCamera,
             armorStandCamera,
+            soundEmitterEntity,
             entityToBeMountedNetworkId
         )
 

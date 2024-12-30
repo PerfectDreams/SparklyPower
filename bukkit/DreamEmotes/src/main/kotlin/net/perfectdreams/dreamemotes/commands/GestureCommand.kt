@@ -13,6 +13,7 @@ import net.perfectdreams.dreamcore.utils.createMenu
 import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamcore.utils.scheduler.onMainThread
 import net.perfectdreams.dreamemotes.DreamEmotes
+import net.perfectdreams.dreamemotes.gestures.SparklyGesturesRegistry
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
@@ -48,7 +49,7 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
             val animationName = args[options.animation]
 
             if (animationName != null) {
-                val animation = m.sparklyGestures.animations[animationName]
+                val animation = SparklyGesturesRegistry.animations[animationName]
 
                 if (animation == null) {
                     player.sendMessage(
@@ -74,7 +75,7 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
                                 player,
                                 currentPlayerLocation,
                                 gestureSkinHeads,
-                                m.sparklyGestures.blockbenchModel,
+                                SparklyGesturesRegistry.blockbenchModels[animation.blockbenchModel]!!,
                                 animation
                             )
                         } else {
@@ -89,7 +90,7 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
                 }
             } else {
                 val menu = createMenu(54, "Gestos") {
-                    for ((i, gesture) in m.sparklyGestures.animations.entries.withIndex()) {
+                    for ((i, gesture) in SparklyGesturesRegistry.animations.entries.withIndex()) {
                         slot(i) {
                             this.item = ItemStack.of(Material.DIAMOND)
                                 .meta<ItemMeta> {
@@ -115,7 +116,7 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
                                                 player,
                                                 currentPlayerLocation,
                                                 gestureSkinHeads,
-                                                m.sparklyGestures.blockbenchModel,
+                                                SparklyGesturesRegistry.blockbenchModels[gesture.value.blockbenchModel]!!,
                                                 gesture.value
                                             )
                                         } else {

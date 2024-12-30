@@ -1,8 +1,9 @@
 package net.perfectdreams.dreamemotes.commands
 
+import com.charleskorn.kaml.Yaml
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import net.kyori.adventure.text.format.NamedTextColor
-import net.perfectdreams.dreamcore.utils.adventure.displayNameWithoutDecorations
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.commands.context.CommandArguments
 import net.perfectdreams.dreamcore.utils.commands.context.CommandContext
@@ -10,15 +11,10 @@ import net.perfectdreams.dreamcore.utils.commands.declarations.SparklyCommandDec
 import net.perfectdreams.dreamcore.utils.commands.declarations.sparklyCommand
 import net.perfectdreams.dreamcore.utils.commands.executors.SparklyCommandExecutor
 import net.perfectdreams.dreamcore.utils.commands.options.CommandOptions
-import net.perfectdreams.dreamcore.utils.createMenu
-import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamcore.utils.scheduler.onMainThread
 import net.perfectdreams.dreamemotes.DreamEmotes
 import net.perfectdreams.dreamemotes.blockbench.BlockbenchModel
-import net.perfectdreams.dreamemotes.gestures.SparklyGestures
-import org.bukkit.Material
-import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
+import net.perfectdreams.dreamemotes.gestures.SparklyGestureData
 import java.io.File
 
 class TestGestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
@@ -29,9 +25,7 @@ class TestGestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper 
 
     class EmoteExecutor(val m: DreamEmotes) : SparklyCommandExecutor() {
         inner class Options : CommandOptions() {
-            val file = word("file")
-            val animation = word("animation")
-            val type = word("type")
+            val gestureFile = word("gesture_file")
         }
 
         override val options = Options()
@@ -40,16 +34,16 @@ class TestGestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper 
             val player = context.requirePlayer()
             val requestedLocation = player.location
 
-            val blockbenchModel = Json {
-                ignoreUnknownKeys = true
-            }.decodeFromString<BlockbenchModel>(File(m.dataFolder, args[options.file] + ".bbmodel").readText())
-
-            val animation = args[options.animation]
-            val type = args[options.type]
-            val bbAnimation = blockbenchModel.animations.first { it.name == animation }
+            val gestureFile = args[options.gestureFile]
 
             m.launchAsyncThread {
                 val gestureSkinHeads = m.gesturesManager.getOrCreatePlayerGesturePlaybackSkins(player)
+
+                val sidecar = Yaml.default.decodeFromString<SparklyGestureData>(File(m.gesturesFolder, "${gestureFile}.yml").readText(Charsets.UTF_8))
+
+                val blockbenchModel = Json {
+                    ignoreUnknownKeys = true
+                }.decodeFromString<BlockbenchModel>(m.modelsFolder.readText())
 
                 onMainThread {
                     val currentPlayerLocation = player.location
@@ -63,12 +57,7 @@ class TestGestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper 
                             currentPlayerLocation,
                             gestureSkinHeads,
                             blockbenchModel,
-                            when (type) {
-                                "play_and_loop" -> SparklyGestures.SparklyGesture(animation, listOf(SparklyGestures.GestureAction.PlayAndLoop(bbAnimation, mapOf(), { _, _ -> })))
-                                "play_and_hold" -> SparklyGestures.SparklyGesture(animation, listOf(SparklyGestures.GestureAction.PlayAndHold(bbAnimation, mapOf(), { _, _ -> })))
-                                "play_once" -> SparklyGestures.SparklyGesture(animation, listOf(SparklyGestures.GestureAction.Play(bbAnimation, mapOf(), { _, _ -> })))
-                                else -> error("Unknown gesture action type!")
-                            }
+                            sidecar
                         )
                     } else {
                         player.sendMessage(
