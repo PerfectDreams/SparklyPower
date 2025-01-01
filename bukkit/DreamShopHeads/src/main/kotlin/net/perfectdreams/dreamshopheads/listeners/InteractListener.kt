@@ -17,6 +17,10 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.SkullMeta
 
 class InteractListener : Listener {
+    companion object {
+        private val HEAD_PRICE = 5_000
+    }
+
     @EventHandler
     fun onRightClick(e: PlayerInteractEvent) {
         if (!e.rightClick)
@@ -34,7 +38,7 @@ class InteractListener : Listener {
 
         e.isCancelled = true
 
-        if (1_000 > e.player.balance) {
+        if (HEAD_PRICE > e.player.balance) {
             e.player.sendMessage("§8[§9§lLoja§8] §cVocê não tem Sonecas suficientes!")
             return
         }
@@ -53,7 +57,7 @@ class InteractListener : Listener {
             return
         }
 
-        e.player.withdraw(1_000.00, TransactionContext(extra = "comprar uma cabeça no `/warp decoracoes`"))
+        e.player.withdraw(HEAD_PRICE.toDouble(), TransactionContext(extra = "comprar uma cabeça no `/warp decoracoes`"))
         e.player.inventory.addItem(playerHead)
 
         e.player.sendMessage("§8[§9§lLoja§8] §aVocê comprou §9a cabeça§a por §21000 sonecas§a!")
