@@ -139,7 +139,7 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
                 val menu = createMenu(
                     45,
                     textComponent {
-                        font(Key.key("sparklypower:gestures_menu"))
+                        font(Key.key("sparklypower:gestures/gestures_menu"))
                         color(NamedTextColor.WHITE)
                         appendTextComponent {
                             content("xa")
