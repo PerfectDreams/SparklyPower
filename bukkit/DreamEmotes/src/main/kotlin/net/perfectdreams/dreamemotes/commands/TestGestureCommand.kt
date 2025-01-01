@@ -43,7 +43,7 @@ class TestGestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper 
 
                 val blockbenchModel = Json {
                     ignoreUnknownKeys = true
-                }.decodeFromString<BlockbenchModel>(m.modelsFolder.readText())
+                }.decodeFromString<BlockbenchModel>(File(m.modelsFolder, sidecar.blockbenchModel + ".bbmodel").readText())
 
                 onMainThread {
                     val currentPlayerLocation = player.location

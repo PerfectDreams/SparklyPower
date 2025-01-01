@@ -37,5 +37,9 @@ data class GestureAction(
         @Serializable
         @SerialName("play_sound")
         data class PlaySound(val soundKey: String, val volume: Float = 1f, val pitch: Float = 1f) : TickAction()
+
+        @Serializable
+        @SerialName("text_display_text")
+        data class TextDisplayText(val elementName: String, val text: String) : TickAction()
     }
 }

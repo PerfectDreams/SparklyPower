@@ -1,6 +1,7 @@
 package net.perfectdreams.dreamcore.utils
 
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.TextComponent
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.perfectdreams.dreamcore.utils.extensions.meta
 import org.bukkit.Bukkit
@@ -75,6 +76,8 @@ class DreamMenu(
 }
 
 fun createMenu(size: Int, title: String, block: DreamMenuBuilder.() -> Unit) = DreamMenuBuilder(size, LegacyComponentSerializer.legacySection().deserialize(title)).apply(block).build()
+
+fun createMenu(size: Int, title: TextComponent, block: DreamMenuBuilder.() -> Unit) = DreamMenuBuilder(size, title).apply(block).build()
 
 class DreamMenuBuilder(val size: Int, val title: Component) {
 	private val slots = mutableListOf<DreamMenu.DreamMenuSlot>()

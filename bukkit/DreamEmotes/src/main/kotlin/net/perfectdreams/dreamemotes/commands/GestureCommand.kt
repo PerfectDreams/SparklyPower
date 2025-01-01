@@ -1,6 +1,10 @@
 package net.perfectdreams.dreamemotes.commands
 
+import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.perfectdreams.dreambedrockintegrations.utils.isBedrockClient
+import net.perfectdreams.dreamcore.utils.adventure.appendTextComponent
 import net.perfectdreams.dreamcore.utils.adventure.displayNameWithoutDecorations
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.commands.context.CommandArguments
@@ -19,6 +23,34 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
 class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
+    companion object {
+        val SLOT_1 = buildSlotList(0, 1)
+        val SLOT_2 = buildSlotList(3, 1)
+        val SLOT_3 = buildSlotList(6, 1)
+        val SLOT_4 = buildSlotList(0, 3)
+        val SLOT_5 = buildSlotList(3, 3)
+        val SLOT_6 = buildSlotList(6, 3)
+
+        val SLOTS = listOf(
+            SLOT_1,
+            SLOT_2,
+            SLOT_3,
+            SLOT_4,
+            SLOT_5,
+            SLOT_6
+        )
+
+        private fun buildSlotList(startX: Int, startY: Int): List<Int> {
+            return buildList {
+                repeat(3) { x ->
+                    repeat(2) { y ->
+                        add((startX + x) + ((startY + y) * 9))
+                    }
+                }
+            }
+        }
+    }
+
     override fun declaration() = sparklyCommand(listOf("gesture", "emote", "gesto")) {
         permission = "dreamemotes.emote"
         executor = EmoteExecutor(m)
@@ -41,6 +73,16 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
                     textComponent {
                         color(NamedTextColor.RED)
                         content("Você não pode usar gestos neste mundo!")
+                    }
+                )
+                return
+            }
+
+            if (player.isBedrockClient) {
+                player.sendMessage(
+                    textComponent {
+                        color(NamedTextColor.RED)
+                        content("Apenas players Minecraft: Java Edition podem usar os gestos do SparklyPower!")
                     }
                 )
                 return
@@ -89,43 +131,95 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
                     }
                 }
             } else {
-                val menu = createMenu(54, "Gestos") {
-                    for ((i, gesture) in SparklyGesturesRegistry.animations.entries.withIndex()) {
-                        slot(i) {
-                            this.item = ItemStack.of(Material.DIAMOND)
-                                .meta<ItemMeta> {
-                                    this.displayNameWithoutDecorations {
-                                        content(gesture.key)
+                val gestures = SparklyGesturesRegistry.animations.entries.take(6)
+
+                val topRow = gestures.take(3)
+                val bottomRow = gestures.drop(3).take(3)
+
+                val menu = createMenu(
+                    45,
+                    textComponent {
+                        font(Key.key("sparklypower:gestures_menu"))
+                        color(NamedTextColor.WHITE)
+                        appendTextComponent {
+                            content("xa")
+                        }
+
+                        appendTextComponent {
+                            font(Key.key("sparklypower:gestures/gestures_top_row"))
+                            content(
+                                buildString {
+                                    append("y")
+                                    for ((index, element) in topRow.withIndex()) {
+                                        append(element.value.favoriteGesturesCharacter)
+                                        if (index != 2)
+                                            append("z")
                                     }
                                 }
+                            )
+                        }
 
-                            this.onClick {
-                                it.closeInventory()
+                        appendTextComponent {
+                            font(Key.key("sparklypower:gestures/gestures_bottom_row"))
+                            content(
+                                buildString {
+                                    append("y")
+                                    for ((index, element) in bottomRow.withIndex()) {
+                                        append(element.value.favoriteGesturesCharacter)
+                                        if (index != 2)
+                                            append("z")
+                                    }
+                                }
+                            )
+                        }
+                    }
+                ) {
+                    for ((i, gesture) in gestures.withIndex()) {
+                        val slot = SLOTS[i]
 
-                                m.launchAsyncThread {
-                                    val gestureSkinHeads = m.gesturesManager.getOrCreatePlayerGesturePlaybackSkins(player)
+                        for (slotIndex in slot) {
+                            slot(slotIndex) {
+                                this.item = ItemStack.of(Material.LIGHT_GRAY_STAINED_GLASS_PANE)
+                                    .meta<ItemMeta> {
+                                        setCustomModelData(2)
+                                        this.displayNameWithoutDecorations {
+                                            color(NamedTextColor.YELLOW)
+                                            append(MiniMessage.miniMessage().deserialize(gesture.value.name))
+                                        }
+                                    }
 
-                                    onMainThread {
-                                        // Cancel current gesture just for us to get the CORRECT exit location of the player
-                                        m.gesturesManager.stopGesturePlayback(player)
+                                this.onClick {
+                                    it.closeInventory()
 
-                                        val currentPlayerLocation = player.location
+                                    m.launchAsyncThread {
+                                        val gestureSkinHeads =
+                                            m.gesturesManager.getOrCreatePlayerGesturePlaybackSkins(player)
 
-                                        if (requestedLocation.world == currentPlayerLocation.world && 2 >= currentPlayerLocation.distanceSquared(requestedLocation)) {
-                                            m.gesturesManager.createGesturePlayback(
-                                                player,
-                                                currentPlayerLocation,
-                                                gestureSkinHeads,
-                                                SparklyGesturesRegistry.blockbenchModels[gesture.value.blockbenchModel]!!,
-                                                gesture.value
-                                            )
-                                        } else {
-                                            player.sendMessage(
-                                                textComponent {
-                                                    color(NamedTextColor.RED)
-                                                    content("Você se moveu enquanto o gesto estava sendo carregado! Se você quiser usar o gesto, use o comando novamente.")
-                                                }
-                                            )
+                                        onMainThread {
+                                            // Cancel current gesture just for us to get the CORRECT exit location of the player
+                                            m.gesturesManager.stopGesturePlayback(player)
+
+                                            val currentPlayerLocation = player.location
+
+                                            if (requestedLocation.world == currentPlayerLocation.world && 2 >= currentPlayerLocation.distanceSquared(
+                                                    requestedLocation
+                                                )
+                                            ) {
+                                                m.gesturesManager.createGesturePlayback(
+                                                    player,
+                                                    currentPlayerLocation,
+                                                    gestureSkinHeads,
+                                                    SparklyGesturesRegistry.blockbenchModels[gesture.value.blockbenchModel]!!,
+                                                    gesture.value
+                                                )
+                                            } else {
+                                                player.sendMessage(
+                                                    textComponent {
+                                                        color(NamedTextColor.RED)
+                                                        content("Você se moveu enquanto o gesto estava sendo carregado! Se você quiser usar o gesto, use o comando novamente.")
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }

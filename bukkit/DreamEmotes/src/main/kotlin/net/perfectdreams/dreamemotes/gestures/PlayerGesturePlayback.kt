@@ -1,7 +1,11 @@
 package net.perfectdreams.dreamemotes.gestures
 
 import com.destroystokyo.paper.profile.ProfileProperty
-import net.minecraft.network.protocol.game.*
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.minecraft.network.protocol.game.ClientboundBundlePacket
+import net.minecraft.network.protocol.game.ClientboundGameEventPacket
+import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket
+import net.minecraft.network.protocol.game.ClientboundSetCameraPacket
 import net.perfectdreams.dreamcore.DreamCore
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
@@ -12,6 +16,7 @@ import net.perfectdreams.dreamemotes.DreamEmotes
 import net.perfectdreams.dreamemotes.OrbitalCamera
 import net.perfectdreams.dreamemotes.blockbench.BlockbenchModel
 import org.bukkit.Bukkit
+import org.bukkit.Color
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
@@ -22,9 +27,11 @@ import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.inventory.meta.SkullMeta
 import org.bukkit.profile.PlayerTextures
 import org.joml.Matrix4f
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import java.util.*
 import kotlin.math.abs
+
 
 // Playbacks a gesture
 class PlayerGesturePlayback(
@@ -110,9 +117,14 @@ class PlayerGesturePlayback(
         fun processOutliner(
             outline: BlockbenchModel.Outliner,
             parentMatrix4f: Matrix4f,
+
             parentOffsetX: Double,
             parentOffsetY: Double,
             parentOffsetZ: Double,
+
+            parentRotX: Double,
+            parentRotY: Double,
+            parentRotZ: Double
         ) {
             // If rotations are wrong, check if the "pivot" in the animation is in the right place!
             // (Yes, there is the outliner pivot AND a animation-specific pivot)
@@ -376,7 +388,9 @@ class PlayerGesturePlayback(
                         val rotCur = currentKeyframe.dataPoints.first()
                         val rotNext = nextKeyframe.dataPoints.first()
 
-                        val relStart = blockbenchTime - currentKeyframe.time
+                        val relCurrentTime = blockbenchTime - currentKeyframe.time
+                        val relEnd = nextKeyframe.time - currentKeyframe.time
+                        val progress = relCurrentTime / relEnd
 
                         // player.sendMessage("Current Keyframe: $currentKeyframe")
                         // player.sendMessage("Next Keyframe: $nextKeyframe")
@@ -384,17 +398,17 @@ class PlayerGesturePlayback(
                         outlineScaleX *= easeLinear(
                             rotCur.x,
                             rotNext.x,
-                            (currentKeyframe.time + relStart) / nextKeyframe.time
+                            progress
                         )
                         outlineScaleY *= easeLinear(
                             rotCur.y,
                             rotNext.y,
-                            (currentKeyframe.time + relStart) / nextKeyframe.time
+                            progress
                         )
                         outlineScaleZ *= easeLinear(
                             rotCur.z,
                             rotNext.z,
-                            (currentKeyframe.time + relStart) / nextKeyframe.time
+                            progress
                         )
                         // player.sendMessage("outlineOriginX (eased): $outlineOriginX")
                         // player.sendMessage("outlineOriginY (eased): $outlineOriginY")
@@ -441,8 +455,11 @@ class PlayerGesturePlayback(
             matrix4f.rotateY(outlineRotationYRad.toFloat()) // Rotate around Y-axis
             matrix4f.rotateX(outlineRotationXRad.toFloat()) // Rotate around X-axis
 
-            matrix4f.scale(outlineScaleX.toFloat(), outlineScaleY.toFloat(), outlineScaleZ.toFloat())
+            matrix4f.translate(-outlineOriginX.toFloat(), -outlineOriginY.toFloat(), -outlineOriginZ.toFloat())
 
+            // This is a bit hard to do, and to make it work...
+            matrix4f.translate(outlineOriginX.toFloat(), outlineOriginY.toFloat(), outlineOriginZ.toFloat())
+            matrix4f.scale(outlineScaleX.toFloat(), outlineScaleY.toFloat(), outlineScaleZ.toFloat())
             matrix4f.translate(-outlineOriginX.toFloat(), -outlineOriginY.toFloat(), -outlineOriginZ.toFloat())
 
             val childrenUniqueIds = outline.children.filterIsInstance<BlockbenchModel.ChildrenOutliner.ElementReference>().map { it.uuid }
@@ -484,178 +501,128 @@ class PlayerGesturePlayback(
                 var localRotationY = 0.0
                 var localRotationZ = 0.0
 
-                if (element.name == "hat") {
-                    // The hat is a bit wonky and hacky and VERY hacky HACKY HACKY HACKY!!!
-                    scaleX *= 2.3f
-                    scaleY *= 2.3f
-                    scaleZ *= 2.3f
-
-                    localOffsetY -= 5.6
-                }
-
-                // Bukkit.broadcastMessage("${element.name} offsets: $offsetX; $offsetY; $offsetZ")
-                // Bukkit.broadcastMessage("${element.name} centers: $centerX; $centerY ($bottomY); $centerZ")
-
-                // We don't need to manipulate the coordinates, display entities' translations are not capped! So we only need to translate on the transformation itself
-                val sourceLocation = location.clone()
-                val existingEntity = elementIdToEntities[element.uuid]
-
-                val itemScaleX = (scaleX.toFloat() * 2f)
-                val itemScaleY = (scaleY.toFloat() * 2f)
-                val itemScaleZ = (scaleZ.toFloat() * 2f)
-
-                val displayTransformationMatrix = Matrix4f(matrix4f)
-                    .translate(
-                        (centerX + offsetX).toFloat(),
-                        (bottomY + localOffsetY + offsetY).toFloat(),
-                        (centerZ + offsetZ).toFloat()
-                    )
-                    .apply {
-                        if (element.name == "hat") {
-                            rotateY(Math.toRadians(180.0).toFloat())
-                        }
-                    }
-                    .scale(
-                        itemScaleX,
-                        itemScaleY,
-                        itemScaleZ,
-                    )
-
                 // This is the custom gesture prop mapper
                 val propMapper = sparklyGesture.props[element.name]
-                if (propMapper != null) {
-                    when (propMapper) {
-                        is PropMapper.ItemDisplay -> {
-                            displayTransformationMatrix.scale(propMapper.scaleX, propMapper.scaleY, propMapper.scaleZ)
-                        }
+
+                if (propMapper == null) {
+                    // It isn't a custom prop! (player mesh and stuff)
+                    // Everything NOT related to custom props is here, to avoid any "whoopsie" breakages breaking any of the default props
+                    if (element.name == "hat") {
+                        // The hat is a bit wonky and hacky and VERY hacky HACKY HACKY HACKY!!!
+                        scaleX *= 2.3f
+                        scaleY *= 2.3f
+                        scaleZ *= 2.3f
+
+                        localOffsetY -= 5.6
                     }
-                }
 
-                val currentTransform = elementIdToMatrix4f[element.uuid]
-                elementIdToMatrix4f[element.uuid] = displayTransformationMatrix
+                    // Bukkit.broadcastMessage("${element.name} offsets: $offsetX; $offsetY; $offsetZ")
+                    // Bukkit.broadcastMessage("${element.name} centers: $centerX; $centerY ($bottomY); $centerZ")
 
-                if (existingEntity != null) {
-                    // existingEntity.teleport(sourceLocation)
-                    if (element.name == "nameplate") {
-                        // We DO NOT want rotation, because that causes the nameplate to rotate based on its origin
-                        val transformedPos = Vector3f((centerX + offsetX).toFloat(), (centerY + offsetY).toFloat(), (centerZ + offsetZ).toFloat())
-                        matrix4f.transformPosition(transformedPos)
+                    // We don't need to manipulate the coordinates, display entities' translations are not capped! So we only need to translate on the transformation itself
+                    val sourceLocation = location.clone()
+                    val existingEntity = elementIdToEntities[element.uuid]
 
-                        val nameplateLocation = location.clone()
-                            .add(
-                                transformedPos.x.toDouble(),
-                                transformedPos.y.toDouble(),
-                                transformedPos.z.toDouble()
-                            )
+                    val itemScaleX = (scaleX.toFloat() * 2f)
+                    val itemScaleY = (scaleY.toFloat() * 2f)
+                    val itemScaleZ = (scaleZ.toFloat() * 2f)
 
-                        existingEntity.teleport(nameplateLocation)
-                    } else {
-                        if (currentTransform == displayTransformationMatrix) {
-                            // Fixes jittery elements that had a dynamic transformation set but doesn't have them anymore
-                            existingEntity.interpolationDelay = 0
-                            existingEntity.interpolationDuration = 0
-                        } else {
-                            existingEntity.interpolationDelay = -1
-                            existingEntity.interpolationDuration = INTERPOLATION_DURATION_TICKS
-                            existingEntity.setTransformationMatrix(displayTransformationMatrix)
-                        }
-                    }
-                } else {
-                    val entity = if (element.name == "nameplate") {
-                        // For nameplates, we do a special case due to the way text displays work
-                        // We DO NOT want rotation, because that causes the nameplate to rotate based on its origin
-                        // val elementMatrix4f = Matrix4f(matrix4f)
-                        val transformedPos = Vector3f((centerX + offsetX).toFloat(), (centerY + offsetY).toFloat(), (centerZ + offsetZ).toFloat())
-                        matrix4f.transformPosition(transformedPos)
-
-                        // Bukkit.broadcastMessage("${element.name}: coordinates: ${transformedPos.x}; ${transformedPos.y}; ${transformedPos.z}")
-
-                        // We don't need to manipulate the coordinates, display entities' translations are not capped! So we only need to translate on the transformation itself
-                        val nameplateLocation = location.clone()
-                            .add(
-                                transformedPos.x.toDouble(),
-                                transformedPos.y.toDouble(),
-                                transformedPos.z.toDouble()
-                            )
-
-                        // Special handling for the nameplate
-                        var nameplateName = player.name()
-                        // Try getting the prefix and suffix of the player in the PhoenixScoreboard, to make it look even fancier
-
-                        val scoreboard = DreamCore.INSTANCE.scoreboardManager.getScoreboard(player)
-
-                        if (scoreboard != null) {
-                            val team = scoreboard.scoreboard.getEntityTeam(player)
-
-                            if (team != null) {
-                                nameplateName = textComponent {
-                                    if (team.hasColor())
-                                        color(team.color())
-                                    append(team.prefix())
-                                    append(player.name)
-                                    append(team.suffix())
-                                }
+                    // TODO: Fix scaling non-player head display items
+                    //  Currently, if the original item model is 8x8x8 on Blockbench, it does scale around the center without any pivot meddling
+                    //  But anything else does NOT scale correctly
+                    //  A diamond block model, to scale correctly around the center without any pivot meddling, it should be 8f x 8f x 8f in Blockbench, and
+                    //  xyz 0.5 scale in the config
+                    val displayTransformationMatrix = Matrix4f(matrix4f)
+                        .translate(
+                            (centerX + offsetX).toFloat(),
+                            (bottomY + localOffsetY + offsetY).toFloat(),
+                            (centerZ + offsetZ).toFloat()
+                        )
+                        .scale(
+                            itemScaleX,
+                            itemScaleY,
+                            itemScaleZ
+                        )
+                        .apply {
+                            if (element.name == "hat") {
+                                rotateY(Math.toRadians(180.0).toFloat())
                             }
                         }
 
-                        location.world.spawn(
-                            // We INTENTIONALLY use topY instead of centerY, because Minecraft scales based on the item's TOP LOCATION, not the CENTER
-                            nameplateLocation, // location.clone().add(centerX, bottomY, centerZ),
-                            TextDisplay::class.java
-                        ) {
-                            it.text(nameplateName)
-                            it.billboard = Display.Billboard.CENTER
+                    val currentTransform = elementIdToMatrix4f[element.uuid]
+                    elementIdToMatrix4f[element.uuid] = displayTransformationMatrix
 
-                            it.teleportDuration = 1
-                            it.isPersistent = false
+                    if (existingEntity != null) {
+                        // existingEntity.teleport(sourceLocation)
+                        if (element.name == "nameplate") {
+                            // We DO NOT want rotation, because that causes the nameplate to rotate based on its origin
+                            val transformedPos = Vector3f((centerX + offsetX).toFloat(), (centerY + offsetY).toFloat(), (centerZ + offsetZ).toFloat())
+                            matrix4f.transformPosition(transformedPos)
+
+                            val nameplateLocation = location.clone()
+                                .add(
+                                    transformedPos.x.toDouble(),
+                                    transformedPos.y.toDouble(),
+                                    transformedPos.z.toDouble()
+                                )
+
+                            existingEntity.teleport(nameplateLocation)
+                        } else {
+                            // The != check is to fix jittery elements that had a dynamic transformation set but doesn't have them anymore
+                            if (currentTransform != displayTransformationMatrix) {
+                                existingEntity.interpolationDelay = -1
+                                existingEntity.interpolationDuration = INTERPOLATION_DURATION_TICKS
+                                existingEntity.setTransformationMatrix(displayTransformationMatrix)
+                            }
                         }
                     } else {
-                        if (propMapper != null) {
-                            // Custom prop of this emote
-                            when (propMapper) {
-                                is PropMapper.ItemDisplay -> {
-                                    location.world.spawn(
-                                        // We INTENTIONALLY use topY instead of centerY, because Minecraft scales based on the item's TOP LOCATION, not the CENTER
-                                        sourceLocation, // location.clone().add(centerX, bottomY, centerZ),
-                                        ItemDisplay::class.java
-                                    ) {
-                                        // A normal player head item has 0.5 scale in Blockbench
-                                        // A cube is 2x2x2 in Blockbench
-                                        it.interpolationDelay = -1
-                                        // We do 2 interpolation duration because 1 feels like it doesn't interpolate anything at all
-                                        // We should always keep this (delay between frames) + 1
+                        val entity = if (element.name == "nameplate") {
+                            // For nameplates, we do a special case due to the way text displays work
+                            // We DO NOT want rotation, because that causes the nameplate to rotate based on its origin
+                            // val elementMatrix4f = Matrix4f(matrix4f)
+                            val transformedPos = Vector3f((centerX + offsetX).toFloat(), (centerY + offsetY).toFloat(), (centerZ + offsetZ).toFloat())
+                            matrix4f.transformPosition(transformedPos)
 
-                                        it.interpolationDuration = INTERPOLATION_DURATION_TICKS
-                                        it.teleportDuration = 1
-                                        it.isPersistent = false
+                            // Bukkit.broadcastMessage("${element.name}: coordinates: ${transformedPos.x}; ${transformedPos.y}; ${transformedPos.z}")
 
-                                        it.setTransformationMatrix(displayTransformationMatrix)
+                            // We don't need to manipulate the coordinates, display entities' translations are not capped! So we only need to translate on the transformation itself
+                            val nameplateLocation = location.clone()
+                                .add(
+                                    transformedPos.x.toDouble(),
+                                    transformedPos.y.toDouble(),
+                                    transformedPos.z.toDouble()
+                                )
 
-                                        it.setItemStack(
-                                            ItemStack.of(propMapper.item.material)
-                                                .meta<ItemMeta> {
-                                                    this.itemModel = NamespacedKey.fromString(propMapper.item.itemModel)
+                            // Special handling for the nameplate
+                            var nameplateName = player.name()
+                            // Try getting the prefix and suffix of the player in the PhoenixScoreboard, to make it look even fancier
 
-                                                    if (this is SkullMeta) {
-                                                        val playerProfileSkin = propMapper.item.playerProfileSkin
+                            val scoreboard = DreamCore.INSTANCE.scoreboardManager.getScoreboard(player)
 
-                                                        if (playerProfileSkin != null) {
-                                                            val profile = Bukkit.createProfile(UUID(0L, 0L), "")
-                                                            profile.setProperty(
-                                                                ProfileProperty(
-                                                                    "textures",
-                                                                    playerProfileSkin.value,
-                                                                    playerProfileSkin.signature
-                                                                )
-                                                            )
+                            if (scoreboard != null) {
+                                val team = scoreboard.scoreboard.getEntityTeam(player)
 
-                                                            this.playerProfile = profile
-                                                        }
-                                                    }
-                                                }
-                                        )
+                                if (team != null) {
+                                    nameplateName = textComponent {
+                                        if (team.hasColor())
+                                            color(team.color())
+                                        append(team.prefix())
+                                        append(player.name)
+                                        append(team.suffix())
                                     }
                                 }
+                            }
+
+                            location.world.spawn(
+                                // We INTENTIONALLY use topY instead of centerY, because Minecraft scales based on the item's TOP LOCATION, not the CENTER
+                                nameplateLocation, // location.clone().add(centerX, bottomY, centerZ),
+                                TextDisplay::class.java
+                            ) {
+                                it.text(nameplateName)
+                                it.billboard = Display.Billboard.CENTER
+
+                                it.teleportDuration = 1
+                                it.isPersistent = false
                             }
                         } else {
                             location.world.spawn(
@@ -744,9 +711,175 @@ class PlayerGesturePlayback(
                                 it.setTransformationMatrix(displayTransformationMatrix)
                             }
                         }
-                    }
 
-                    elementIdToEntities[element.uuid] = entity
+                        elementIdToEntities[element.uuid] = entity
+                    }
+                } else {
+                    // Custom prop handling goes here!
+                    when (propMapper) {
+                        is PropMapper.ItemDisplay -> {
+                            // ITEM DISPLAYS ARE SCALED FROM THE **CENTER OF THE ITEM**
+                            // ACTUALLY I LIED, IT DEPENDS ON THE ITEM YOU ARE SCALING, BY DEFAULT IT IS AT THE CENTER BTW
+                            // BUT THINGS LIKE PLAYER HEADS ARE NOT SCALED FROM THE CENTER (probably because the item itself has "padding")
+                            //
+                            // THE TRANSLATION ITSELF DOES NOT SEEM TO CHANGE THE SCALE POSITION OR WHATEVER THE FUCK WE ARE DOING
+                            // (YOU CAN TEST THAT BY SCALING TWO ITEMS, ONE PLAYER HEAD AND ANOTHER DIAMOND BLOCK)
+                            //
+                            // THIS ALSO MEANS THAT TWO ELEMENTS IN BB THAT ARE MAPPED TO DIFFERENT ITEMS, WILL HAVE DIFFERENT APPEARANCES
+                            //
+                            // This is why there is a "offsetYType" for props, sometimes you may want to use "bottom" (player heads), other times you may want to use "center" (blocks)
+                            val customPropOffsetYType = when (propMapper.offsetYType) {
+                                PropMapper.ItemDisplay.OffsetType.BOTTOM -> bottomY
+                                PropMapper.ItemDisplay.OffsetType.CENTER -> centerY
+                                PropMapper.ItemDisplay.OffsetType.TOP -> topY
+                            }
+
+                            val displayTransformationMatrix = Matrix4f(matrix4f)
+                                .translate(
+                                    (centerX + offsetX).toFloat(),
+                                    (customPropOffsetYType + localOffsetY + offsetY).toFloat(),
+                                    (centerZ + offsetZ).toFloat()
+                                )
+                                .scale(
+                                    propMapper.scaleX,
+                                    propMapper.scaleY,
+                                    propMapper.scaleZ,
+                                )
+
+                            val existingEntity = elementIdToEntities[element.uuid]
+
+                            val currentTransform = elementIdToMatrix4f[element.uuid]
+                            elementIdToMatrix4f[element.uuid] = displayTransformationMatrix
+
+                            if (existingEntity != null) {
+                                // The != check is to fix jittery elements that had a dynamic transformation set but doesn't have them anymore
+                                if (currentTransform != displayTransformationMatrix) {
+                                    existingEntity.interpolationDelay = -1
+                                    existingEntity.interpolationDuration = INTERPOLATION_DURATION_TICKS
+                                    existingEntity.setTransformationMatrix(displayTransformationMatrix)
+                                }
+                            } else {
+                                val entity = location.world.spawn(
+                                    // We INTENTIONALLY use topY instead of centerY, because Minecraft scales based on the item's TOP LOCATION, not the CENTER
+                                    location,
+                                    ItemDisplay::class.java
+                                ) {
+                                    // A normal player head item has 0.5 scale in Blockbench
+                                    // A cube is 2x2x2 in Blockbench
+                                    it.interpolationDelay = -1
+                                    // We do 2 interpolation duration because 1 feels like it doesn't interpolate anything at all
+                                    // We should always keep this (delay between frames) + 1
+
+                                    it.interpolationDuration = INTERPOLATION_DURATION_TICKS
+                                    it.teleportDuration = 1
+                                    it.isPersistent = false
+
+                                    it.setTransformationMatrix(displayTransformationMatrix)
+
+                                    it.setItemStack(
+                                        ItemStack.of(propMapper.item.material)
+                                            .meta<ItemMeta> {
+                                                this.itemModel = NamespacedKey.fromString(propMapper.item.itemModel)
+
+                                                if (this is SkullMeta) {
+                                                    val playerProfileSkin = propMapper.item.playerProfileSkin
+
+                                                    if (playerProfileSkin != null) {
+                                                        val profile = Bukkit.createProfile(UUID(0L, 0L), "")
+                                                        profile.setProperty(
+                                                            ProfileProperty(
+                                                                "textures",
+                                                                playerProfileSkin.value,
+                                                                playerProfileSkin.signature
+                                                            )
+                                                        )
+
+                                                        this.playerProfile = profile
+                                                    }
+                                                }
+                                            }
+                                    )
+
+                                    it.brightness = propMapper.brightness?.let {
+                                        Display.Brightness(
+                                            it.blockLight,
+                                            it.skyLight
+                                        )
+                                    }
+                                }
+
+                                elementIdToEntities[element.uuid] = entity
+                            }
+                        }
+                        is PropMapper.TextDisplay -> {
+                            // Text Displays are more finicky when using the billboard function (except when using FIXED), because it rotates around the entity's origin
+                            // It also borks out when using any kind of rotation
+                            //
+                            // You can't extract a "usable" euler angle from the rotation matrix
+                            // In fact, when implementing cameras in LWJGL, the right way is to store a pos/rot and then create a Matrix4f from that
+                            // https://lwjglgamedev.gitbooks.io/3d-game-development-with-lwjgl/content/chapter08/chapter8.html
+                            // So we are going to skill all of that, and use the rotation of the current element as the yaw/pitch
+
+                            // We DO NOT want rotation, because that causes the nameplate to rotate based on its origin
+                            val transformedPos = Vector3f((centerX + offsetX).toFloat(), (centerY + offsetY).toFloat(), (centerZ + offsetZ).toFloat())
+                            matrix4f.transformPosition(transformedPos)
+
+                            val nameplateLocation = location.clone()
+                                .add(
+                                    transformedPos.x.toDouble(),
+                                    transformedPos.y.toDouble(),
+                                    transformedPos.z.toDouble()
+                                )
+
+                            val scale = matrix4f.getScale(Vector3f())
+
+                            val displayTransformationMatrix = Matrix4f()
+                                .scale(scale.x * propMapper.scaleX, scale.y * propMapper.scaleY, scale.z * propMapper.scaleZ)
+
+                            val existingEntity = elementIdToEntities[element.uuid]
+
+                            val currentTransform = elementIdToMatrix4f[element.uuid]
+                            elementIdToMatrix4f[element.uuid] = displayTransformationMatrix
+
+                            if (existingEntity != null) {
+                                // The != check is to fix jittery elements that had a dynamic transformation set but doesn't have them anymore
+                                if (currentTransform != displayTransformationMatrix) {
+                                    existingEntity.interpolationDelay = -1
+                                    existingEntity.interpolationDuration = INTERPOLATION_DURATION_TICKS
+                                    existingEntity.setTransformationMatrix(displayTransformationMatrix)
+                                }
+                            } else {
+                                val entity = location.world.spawn(
+                                    nameplateLocation,
+                                    TextDisplay::class.java
+                                ) {
+                                    // A normal player head item has 0.5 scale in Blockbench
+                                    // A cube is 2x2x2 in Blockbench
+                                    it.interpolationDelay = -1
+                                    // We do 2 interpolation duration because 1 feels like it doesn't interpolate anything at all
+                                    // We should always keep this (delay between frames) + 1
+
+                                    it.interpolationDuration = INTERPOLATION_DURATION_TICKS
+                                    it.teleportDuration = 1
+                                    it.isPersistent = false
+
+                                    it.setTransformationMatrix(displayTransformationMatrix)
+                                    it.billboard = propMapper.billboard
+                                    it.backgroundColor = Color.fromARGB(propMapper.backgroundColor)
+                                    it.brightness = propMapper.brightness?.let {
+                                        Display.Brightness(
+                                            it.blockLight,
+                                            it.skyLight
+                                        )
+                                    }
+
+                                    it.text(MiniMessage.miniMessage().deserialize(propMapper.text))
+                                }
+
+                                elementIdToEntities[element.uuid] = entity
+                            }
+                        }
+                    }
                 }
             }
 
@@ -756,14 +889,17 @@ class PlayerGesturePlayback(
                     matrix4f,
                     offsetX,
                     offsetY,
-                    offsetZ
+                    offsetZ,
+                    parentRotX + outlineRotationX,
+                    parentRotY + outlineRotationY,
+                    parentRotZ + outlineRotationZ,
                 )
             }
         }
 
         for (outline in blockbenchModel.outliner.filter { it.visibility }) {
             // The scale sets the "target scale" of the scene
-            processOutliner(outline, Matrix4f().scale(TARGET_SCALE).rotateY(Math.toRadians(targetYaw.toDouble()).toFloat()), 0.0, 0.0, 0.0)
+            processOutliner(outline, Matrix4f().scale(TARGET_SCALE).rotateY(Math.toRadians(targetYaw.toDouble()).toFloat()), 0.0, 0.0, 0.0, 0.0, targetYaw.toDouble(), 0.0)
         }
 
         for (tickActions in currentAction.onTick) {
@@ -777,6 +913,12 @@ class PlayerGesturePlayback(
                                 action.volume,
                                 action.pitch
                             )
+                        }
+
+                        is GestureAction.TickAction.TextDisplayText -> {
+                            val element = blockbenchModel.elements.first { it.name == action.elementName }
+                            val entity = elementIdToEntities[element.uuid] as TextDisplay
+                            entity.text(MiniMessage.miniMessage().deserialize(action.text))
                         }
                     }
                 }

@@ -19,6 +19,10 @@ class OrbitalCamera(
     val center: Location,
     val camera: Entity
 ) {
+    companion object {
+        const val CAMERA_SPEED = 0.05f
+    }
+
     var pitch = 0.0f
     var yaw = 0.0f
     var alive = true
@@ -27,9 +31,9 @@ class OrbitalCamera(
         val matrix4f = Matrix4f()
         val vector = Vector3f(3.0f, 0.0f, 0.0f)
 
-        // The * 0.1f decreases the velocity of the camera
-        val targetPlayerYaw = (360 - ((yaw * 0.1f) + 180) % 360) % 360
-        val targetPlayerPitch = pitch * 0.1f
+        // The * CAMERA_SPEED decreases the velocity of the camera
+        val targetPlayerYaw = (360 - ((yaw * CAMERA_SPEED) + 180) % 360) % 360
+        val targetPlayerPitch = pitch * CAMERA_SPEED
         // matrix4f.rotateX(Math.toRadians(xRot.toDouble() % 180).toFloat())
         // matrix4f.rotateY(targetPlayerYaw)
 

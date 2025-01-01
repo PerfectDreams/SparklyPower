@@ -21,6 +21,8 @@ object SparklyGesturesRegistry {
     fun reload(m: DreamEmotes) {
         // Clear all animations
         animations.clear()
+        // Clear all cached Blockbench Models
+        blockbenchModels.clear()
 
         if (m.gesturesFolder.exists()) {
             for (gestureFile in m.gesturesFolder.listFiles()) {
