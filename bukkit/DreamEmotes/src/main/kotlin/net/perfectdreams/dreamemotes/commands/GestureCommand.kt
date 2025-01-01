@@ -21,6 +21,7 @@ import net.perfectdreams.dreamemotes.gestures.SparklyGesturesRegistry
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
+import java.util.logging.Level
 
 class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
     companion object {
@@ -104,7 +105,18 @@ class GestureCommand(val m: DreamEmotes) : SparklyCommandDeclarationWrapper {
                 }
 
                 m.launchAsyncThread {
-                    val gestureSkinHeads = m.gesturesManager.getOrCreatePlayerGesturePlaybackSkins(player)
+                    val gestureSkinHeads = try {
+                        m.gesturesManager.getOrCreatePlayerGesturePlaybackSkins(player)
+                    } catch (e: Exception) {
+                        m.logger.log(Level.WARNING, e) { "Something went wrong while trying to generate and upload the skins for gesture playback!" }
+                        player.sendMessage {
+                            textComponent {
+                                color(NamedTextColor.RED)
+                                content("Algo deu errado ao enviar as suas skins! Se você ainda quiser usar o gesto, use o comando novamente!")
+                            }
+                        }
+                        return@launchAsyncThread
+                    }
 
                     onMainThread {
                         val currentPlayerLocation = player.location

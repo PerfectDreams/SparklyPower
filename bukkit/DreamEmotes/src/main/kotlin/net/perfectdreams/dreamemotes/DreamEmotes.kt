@@ -7,6 +7,7 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
 import net.perfectdreams.dreambedrockintegrations.utils.isBedrockClient
 import net.perfectdreams.dreamcore.utils.Databases
 import net.perfectdreams.dreamcore.utils.KotlinPlugin
+import net.perfectdreams.dreamcore.utils.extensions.displaced
 import net.perfectdreams.dreamcore.utils.extensions.hidePlayerWithoutRemovingFromPlayerList
 import net.perfectdreams.dreamcore.utils.packetevents.ServerboundPacketReceiveEvent
 import net.perfectdreams.dreamcore.utils.registerEvents
@@ -22,12 +23,14 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.event.player.PlayerToggleSneakEvent
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
+import javax.imageio.ImageIO
 
 class DreamEmotes : KotlinPlugin(), Listener {
 	val activeGesturePlaybacks = mutableMapOf<Player, PlayerGesturePlayback>()
@@ -37,6 +40,7 @@ class DreamEmotes : KotlinPlugin(), Listener {
 	val orbitalCameras = mutableMapOf<Player, OrbitalCamera>()
 	val gesturesManager = SparklyGesturesManager(this)
 	lateinit var config: DreamEmotesConfig
+	val defaultSkin = ImageIO.read(File(this.dataFolder, "steve.png"))
 
 	override fun softEnable() {
 		reload()
@@ -124,6 +128,14 @@ class DreamEmotes : KotlinPlugin(), Listener {
 			if (!e.player.isBedrockClient) {
 				e.player.hidePlayerWithoutRemovingFromPlayerList(this, activeGesture.key)
 			}
+		}
+	}
+
+	// This is only here to avoid players doing "/skin", which causes the player to "respawn" but not remount (because the mount is created with packets)
+	@EventHandler
+	fun onMove(e: PlayerMoveEvent) {
+		if (e.displaced) {
+			gesturesManager.stopGesturePlayback(e.player)
 		}
 	}
 }

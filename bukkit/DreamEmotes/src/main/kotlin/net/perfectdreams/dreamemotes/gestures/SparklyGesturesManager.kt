@@ -51,6 +51,7 @@ import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 
 class SparklyGesturesManager(val m: DreamEmotes) {
@@ -71,8 +72,7 @@ class SparklyGesturesManager(val m: DreamEmotes) {
     }
 
     suspend fun getOrCreatePlayerGesturePlaybackSkins(player: Player): GestureSkinHeads {
-        // TODO: Check if the player has a skin and fallback if they don't
-        val playerSkinUrl = player.playerProfile.textures.skin!!
+        val playerSkinUrl = player.playerProfile.textures.skin
 
         val skinParts = mutableMapOf<String, StatueBase.StatuePart>()
 
@@ -144,7 +144,9 @@ class SparklyGesturesManager(val m: DreamEmotes) {
                 }
             }
 
-        val playerSkin = ImageIO.read(playerSkinUrl)
+        val playerSkin = if (playerSkinUrl != null) {
+            ImageIO.read(playerSkinUrl)
+        } else m.defaultSkin
         val isValidOldStyleSkin = playerSkin.width == 64 && playerSkin.height == 32
 
         val skinImage = BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB) // Fixes paletted skins (Like Notch's skin)
@@ -549,6 +551,21 @@ class SparklyGesturesManager(val m: DreamEmotes) {
         val hash = SHAsum(imageAsByteArray)
 
         return this.mineSkinRequestMutex.withLock {
+            // Yes, we query this again because the skin may have been uploaded by another player or something
+            // While it would be better to query within the "uploadSkinInner" call, because we only use a single mutex, we can query outside of it...
+            val cachedResult = transaction(Databases.databaseNetwork) {
+                CachedGestureSkinHeads.selectAll().where {
+                    CachedGestureSkinHeads.skinHash eq hash
+                }.firstOrNull()
+            }
+
+            if (cachedResult != null) {
+                return@withLock SkinResult(
+                    cachedResult[CachedGestureSkinHeads.value],
+                    cachedResult[CachedGestureSkinHeads.signature]
+                )
+            }
+
             val skinResult = uploadSkinInner(imageAsByteArray, hash)
 
             val now = Instant.now()
