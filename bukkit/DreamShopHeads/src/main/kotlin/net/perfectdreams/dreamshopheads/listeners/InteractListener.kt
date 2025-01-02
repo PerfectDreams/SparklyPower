@@ -18,7 +18,7 @@ import org.bukkit.inventory.meta.SkullMeta
 
 class InteractListener : Listener {
     companion object {
-        private val HEAD_PRICE = 5_000
+        private const val HEAD_PRICE = 6_000
     }
 
     @EventHandler
@@ -60,6 +60,6 @@ class InteractListener : Listener {
         e.player.withdraw(HEAD_PRICE.toDouble(), TransactionContext(extra = "comprar uma cabeça no `/warp decoracoes`"))
         e.player.inventory.addItem(playerHead)
 
-        e.player.sendMessage("§8[§9§lLoja§8] §aVocê comprou §9a cabeça§a por §21000 sonecas§a!")
+        e.player.sendMessage("§8[§9§lLoja§8] §aVocê comprou §9a cabeça§a por §2${HEAD_PRICE} sonecas§a!")
     }
 }
