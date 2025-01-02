@@ -1,5 +1,7 @@
 package net.perfectdreams.dreamxizum.structures
 
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import net.kyori.adventure.text.format.NamedTextColor
 import net.perfectdreams.dreamcore.utils.Databases
 import net.perfectdreams.dreamcore.utils.InstantFirework
@@ -49,6 +51,7 @@ class XizumBattle(
 
     var playerPreviousInventory = arrayOf<ItemStack?>()
     var opponentPreviousInventory = arrayOf<ItemStack?>()
+    private var arenaBattleTask: Job? = null
 
     val playerPosition = arena.playerPos ?: error("player position is null on arena '${arena.data.arenaName}'!")
     val opponentPosition = arena.opponentPos ?: error("opponent position is null on arena '${arena.data.arenaName}'!")
@@ -98,7 +101,8 @@ class XizumBattle(
         updatePlayerStatus(opponent, false)
 
         // countdown to start the battle
-        m.launchMainThread {
+        // This task MUST be cancelled when the arena ends/draws, if not, if a lot of players are joining the arena, the task WILL continue active and WILL cause bugs
+        this.arenaBattleTask = m.launchMainThread {
             countdown = true
 
             for (idx in 5 downTo 1) {
@@ -136,6 +140,9 @@ class XizumBattle(
             }
 
             while (started) {
+                if (!coroutineContext.isActive)
+                    return@launchMainThread
+
                 if (duration <= 0) {
                     draw()
                     break
@@ -160,6 +167,8 @@ class XizumBattle(
     }
 
     fun end(loser: Player, result: XizumBattleResult) {
+        arenaBattleTask?.cancel()
+        arenaBattleTask = null
         countdown = false
         started = false
         ended = true
@@ -372,6 +381,8 @@ class XizumBattle(
     }
 
     fun draw() {
+        arenaBattleTask?.cancel()
+        arenaBattleTask = null
         countdown = false
         started = false
         ended = true

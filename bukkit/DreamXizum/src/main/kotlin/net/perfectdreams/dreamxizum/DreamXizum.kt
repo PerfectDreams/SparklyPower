@@ -91,9 +91,10 @@ class DreamXizum : KotlinPlugin() {
     }
 
     private fun cleanup() {
-        arenas.clear()
         activeBattles.filter { it.started || it.countdown }.forEach { it.draw() }
         activeBattles.clear()
+        // The arenas should ONLY be cleared after all battles have been drawn, because the draw code does call the arena clear
+        arenas.clear()
     }
 
     private fun createConfigFile() {
