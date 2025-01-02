@@ -1,5 +1,5 @@
 name: DreamJetpack
 main: net.perfectdreams.dreamjetpack.DreamJetpack
 version: 1.0.0
-depend: ["DreamCore", "DreamBedrockIntegrations"]
+depend: ["DreamCore", "DreamBedrockIntegrations", "DreamXizum"]
 api-version: 1.13

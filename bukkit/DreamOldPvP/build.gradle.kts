@@ -1,20 +1,16 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     kotlin("jvm")
     id("io.papermc.paperweight.userdev")
+    kotlin("plugin.serialization")
 }
 
 repositories {
-    mavenCentral()
     maven("https://jitpack.io")
 }
 
 dependencies {
     paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.3-R0.1-SNAPSHOT")
     compileOnly(project(":bukkit:DreamCore"))
-    compileOnly(project(":bukkit:DreamXizum"))
-    compileOnly(project(":bukkit:DreamBedrockIntegrations"))
 }
 
 kotlin {

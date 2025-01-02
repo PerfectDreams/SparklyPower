@@ -12,6 +12,7 @@ import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamjetpack.events.PlayerJetpackCheckEvent
+import net.perfectdreams.dreamxizum.DreamXizum
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.Particle
@@ -270,11 +271,15 @@ class DreamJetpack : KotlinPlugin(), Listener {
 		registerEvents(this)
 	}
 
+	private fun isInXizum(player: Player): Boolean {
+		return DreamXizum.INSTANCE.activeBattles.any { it.player == player || it.opponent == player }
+	}
+
 	@EventHandler(priority = EventPriority.LOWEST)
 	fun onTeleport(e: PlayerTeleportEvent) {
 		val blacklistedWorlds = config.getStringList("blacklisted-worlds")
 
-		if (flyingPlayers.contains(e.player) && e.to.world.name in blacklistedWorlds) {
+		if (flyingPlayers.contains(e.player) && e.to.world.name in blacklistedWorlds || isInXizum(e.player)) {
 			bossBars[e.player]?.removeAll()
 			bossBars.remove(e.player)
 
@@ -287,6 +292,7 @@ class DreamJetpack : KotlinPlugin(), Listener {
 	@EventHandler
 	fun onShift(e: PlayerToggleSneakEvent) {
 		val chestplate = e.player.inventory.chestplate
+
 		if (e.player.isOnGround && e.isSneaking && chestplate?.type == jetpackType) {
 			val isJetpack = isJetpack(e.player, chestplate)
 
@@ -296,7 +302,7 @@ class DreamJetpack : KotlinPlugin(), Listener {
 				if (!e.player.allowFlight) {
 					val blacklistedWorlds = config.getStringList("blacklisted-worlds")
 
-					if (blacklistedWorlds.contains(e.player.world.name)) {
+					if (blacklistedWorlds.contains(e.player.world.name) || isInXizum(e.player)) {
 						e.player.sendMessage("$PREFIX §cVocê não pode voar aqui")
 						return
 					}

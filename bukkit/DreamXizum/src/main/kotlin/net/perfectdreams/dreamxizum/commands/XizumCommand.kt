@@ -1,83 +1,341 @@
 package net.perfectdreams.dreamxizum.commands
 
-import net.perfectdreams.dreamcore.utils.commands.AbstractCommand
-import net.perfectdreams.dreamcore.utils.commands.annotation.ArgumentType
-import net.perfectdreams.dreamcore.utils.commands.annotation.InjectArgument
-import net.perfectdreams.dreamcore.utils.commands.annotation.Subcommand
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+import net.perfectdreams.dreamcore.utils.Databases
+import net.perfectdreams.dreamcore.utils.adventure.append
+import net.perfectdreams.dreamcore.utils.adventure.textComponent
+import net.perfectdreams.dreamcore.utils.commands.context.CommandArguments
+import net.perfectdreams.dreamcore.utils.commands.context.CommandContext
+import net.perfectdreams.dreamcore.utils.commands.declarations.SparklyCommandDeclarationWrapper
+import net.perfectdreams.dreamcore.utils.commands.declarations.sparklyCommand
+import net.perfectdreams.dreamcore.utils.commands.executors.SparklyCommandExecutor
+import net.perfectdreams.dreamcore.utils.commands.options.CommandOptions
+import net.perfectdreams.dreamcore.utils.extensions.centralizeHeader
+import net.perfectdreams.dreamcore.utils.scheduler.onMainThread
+import net.perfectdreams.dreamcore.utils.set
 import net.perfectdreams.dreamxizum.DreamXizum
-import net.perfectdreams.dreamxizum.utils.XizumRequest
-import org.bukkit.entity.Player
+import net.perfectdreams.dreamxizum.structures.XizumBattle
+import net.perfectdreams.dreamxizum.structures.XizumRequestHolder
+import net.perfectdreams.dreamxizum.tables.dao.XizumProfile
+import net.perfectdreams.dreamxizum.utils.XizumRank
+import org.bukkit.Bukkit
+import org.jetbrains.exposed.sql.transactions.transaction
 
-class XizumCommand(val m: DreamXizum) : AbstractCommand("xizum", listOf("x1", "1v1")) {
-	@Subcommand
-	fun root(player: Player) {
-		player.performCommand("xizum fila")
-	}
+class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
+    override fun declaration() = sparklyCommand(listOf("xizum", "x1")) {
+        executor = XizumCommandExecutor()
 
-	@Subcommand(["fila"])
-	fun file(p0: Player) {
-		val alreadyInXizum = m.arenas.any { it.player1 == p0 || it.player2 == p0 }
-		if (alreadyInXizum) {
-			p0.sendMessage("${DreamXizum.PREFIX} §cVocê já está em uma partida de Xizum!")
-			return
-		}
+        subcommand(listOf("camarote", "spectate")) {
+            executor = XizumSpectateCommandExecutor()
+        }
 
-		if (m.queue.contains(p0)) {
-			m.queue.remove(p0)
-			p0.sendMessage("${DreamXizum.PREFIX} §cVocê saiu da fila do Xizum!")
-			return
-		}
-		m.addToQueue(p0)
-		if (m.queue.contains(p0)) {
-			p0.sendMessage("${DreamXizum.PREFIX} §aVocê entrou na fila do Xizum!")
-		}
-	}
+        subcommand(listOf("desafiar", "challenge")) {
+            executor = XizumChallengeCommandExecutor()
+        }
 
-	@Subcommand(["aceitar"])
-	fun aceitar(p0: Player) {
-		val xizumRequest = m.requests.firstOrNull { it.requestee == p0 }
+        subcommand(listOf("aceitar", "accept")) {
+            executor = XizumAcceptCommandExecutor()
+        }
 
-		if (xizumRequest == null) {
-			p0.sendMessage("${DreamXizum.PREFIX} §cVocê não tem nenhum pedido de Xizum!")
-			return
-		}
+        subcommand(listOf("recusar", "decline")) {
+            executor = XizumDeclineCommandExecutor()
+        }
 
-		val alreadyInXizum = m.arenas.any { it.player1 == p0 || it.player2 == p0 }
-		if (alreadyInXizum) {
-			p0.sendMessage("${DreamXizum.PREFIX} §cVocê já está em uma partida de Xizum!")
-			return
-		}
+        subcommand(listOf("cancelar", "cancel")) {
+            executor = XizumCancelCommandExecutor()
+        }
 
-		m.queue.remove(xizumRequest.requester)
-		m.queue.remove(xizumRequest.requestee)
-		m.requestQueue.removeAll { it.player1 == xizumRequest.requester || it.player2 == xizumRequest.requester }
-		m.requestQueue.removeAll { it.player1 == xizumRequest.requestee || it.player2 == xizumRequest.requestee }
+        subcommand(listOf("ranking", "top")) {
+            executor = XizumRankingCommandExecutor()
+        }
 
-		m.addToRequestQueue(xizumRequest.requester, xizumRequest.requestee)
-	}
+        //subcommand(listOf("desafiar", "challenge")) {
+        //            executor
+        //        }
+    }
 
-	@Subcommand(["convidar"])
-	fun convidar(sender: Player, @InjectArgument(ArgumentType.PLAYER) receiver: Player?) {
-		if (receiver == null) {
-			sender.sendMessage("${DreamXizum.PREFIX} §cJogador não existe ou está offline!")
-			return
-		}
+    inner class XizumCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
 
-		if (sender == receiver) {
-			sender.sendMessage("${DreamXizum.PREFIX} §cVocê não pode chamar a si mesmo para o Xizum, bobinho.")
-			return
-		}
+            if (m.activeBattles.any { it.player == player || it.opponent == player }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Você já está em uma batalha!")
+                }
+                return
+            }
 
-		val alreadyInXizum = m.arenas.any { it.player1 == sender || it.player2 == sender }
-		if (alreadyInXizum) {
-			sender.sendMessage("${DreamXizum.PREFIX} §cVocê já está em uma partida de Xizum!")
-			return
-		}
+            val hud = XizumRequestHolder.build(m, player)
 
-		val xizumRequest = XizumRequest(sender, receiver)
-		m.requests.add(xizumRequest)
+            player.openInventory(hud)
+        }
+    }
 
-		receiver.sendMessage("${DreamXizum.PREFIX} §b${sender.displayName}§3 te enviou um pedido para Xizum, para aceitar, use §6/xizum aceitar")
-		sender.sendMessage("${DreamXizum.PREFIX} §aConvite de Xizum para §b${receiver.displayName}§a foi enviado com sucesso!")
-	}
+    inner class XizumSpectateCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+
+            val loc = m.config.spectatorPos?.toBukkitLocation(m.arenas.first().data.worldName)
+
+            if (loc == null) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("A localização do camarote não foi definida, reporte para a staff!")
+                }
+
+                return
+            }
+
+            if (player.teleport(loc)) {
+                player.persistentDataContainer.set(DreamXizum.IS_IN_CAMAROTE, true)
+
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.GREEN)
+                    append("Você foi teleportado para o camarote da arena!")
+                }
+            } else {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Não foi possível teleportar você para o camarote!")
+                }
+            }
+        }
+    }
+
+    inner class XizumChallengeCommandExecutor : SparklyCommandExecutor() {
+        inner class Options : CommandOptions() {
+            val target = player("target") { context, builder ->
+                Bukkit.getOnlinePlayers().forEach {
+                    builder.suggest(it.name)
+                }
+            }
+        }
+
+        override val options = Options()
+
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+            val target = args[options.target]
+
+            if (player == target) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Você não pode desafiar a si mesmo!")
+                }
+                return
+            }
+
+            if (m.queue.any { it.player == player || it.opponent == player }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Você já está em uma fila de espera!")
+                }
+                return
+            }
+
+            if (m.queue.any { it.player == target || it.opponent == target }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("O jogador que você quer desafiar já está em uma fila de espera!")
+                }
+
+                return
+            }
+
+            if (m.activeBattles.any { it.player == player || it.opponent == player }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Você já está em uma batalha!")
+                }
+                return
+            }
+
+            if (m.activeBattles.any { it.player == target || it.opponent == target}) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("O jogador que você quer desafiar já está em uma batalha!")
+                }
+
+                return
+            }
+
+            if (!target.isOnline) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("O jogador que você quer desafiar não está online!")
+                }
+
+                return
+            }
+
+            val hud = XizumRequestHolder.build(m, player, target, true)
+
+            player.openInventory(hud)
+        }
+    }
+
+    inner class XizumAcceptCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+
+            if (!m.queue.any { it.opponent == player }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Você não tem nenhum convite para aceitar!")
+                }
+
+                return
+            }
+
+            val request = m.queue.first { it.opponent == player }
+            val arena = m.arenas.filter { !it.inUse }.randomOrNull() ?: return m.notifyNoArena(request, request)
+            val battle = XizumBattle(m, arena, request.mode, request.player, request.opponent!!)
+
+            battle.start()
+
+            m.activeBattles.add(battle)
+            m.queue.remove(request)
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Você aceitou o convite de batalha!")
+            }
+
+            request.player.sendMessage(textComponent {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("O seu convite de batalha foi aceito!")
+            })
+        }
+    }
+
+    inner class XizumDeclineCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+
+            if (!m.queue.any { it.opponent == player }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Você não tem nenhum convite para recusar!")
+                }
+
+                return
+            }
+
+            val request = m.queue.first { it.opponent == player }
+
+            m.queue.remove(request)
+
+            request.player.sendMessage(textComponent {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.RED)
+                append("O seu convite de batalha para §b${player.displayName} §cfoi recusado!")
+            })
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Você recusou o convite de batalha de §b${request.player.displayName}§c!")
+            }
+        }
+    }
+
+    inner class XizumCancelCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+
+            if (!m.queue.any { it.player == player }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Você não está em nenhuma fila de espera!")
+                }
+
+                return
+            }
+
+            val request = m.queue.first { it.player == player }
+
+            m.queue.remove(request)
+
+            request.opponent!!.sendMessage(textComponent {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.RED)
+                append("O convite de §b${request.player.displayName} §cpara você foi expirado!")
+            })
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Você cancelou o convite de batalha para §b${request.opponent.displayName}§a!")
+            }
+        }
+    }
+
+    inner class XizumRankingCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            m.launchAsyncThread {
+                val profiles = transaction(Databases.databaseNetwork) {
+                    XizumProfile.all()
+                        .limit(10)
+                        .toList()
+                }
+
+                val sortedProfiles = profiles.sortedByDescending { it.rating }
+
+                onMainThread {
+                    context.sendMessage {
+                        append(LegacyComponentSerializer.legacySection().deserialize("§8[ §bRanking de Combatentes §8- §6Competitivo §8]".centralizeHeader()))
+                        appendNewline()
+                        appendNewline()
+
+                        for ((index, profile) in sortedProfiles.withIndex()) {
+                            val innerPlayer = Bukkit.getOfflinePlayer(profile.id.value)
+
+                            append("§7${index + 1}º §8- §b${innerPlayer.name} §8- §6${XizumRank.getTextByRating(profile.rating)} §8- §6${profile.rating} PdC")
+                            appendNewline()
+                        }
+
+                        appendNewline()
+                        appendNewline()
+                        append(LegacyComponentSerializer.legacySection().deserialize("§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-"))
+                    }
+                }
+            }
+        }
+    }
 }
