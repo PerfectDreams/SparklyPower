@@ -309,10 +309,9 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                 val profiles = transaction(Databases.databaseNetwork) {
                     XizumProfile.all()
                         .limit(10)
+                        .sortedByDescending { it.rating }
                         .toList()
                 }
-
-                val sortedProfiles = profiles.sortedByDescending { it.rating }
 
                 onMainThread {
                     context.sendMessage {
@@ -320,7 +319,7 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                         appendNewline()
                         appendNewline()
 
-                        for ((index, profile) in sortedProfiles.withIndex()) {
+                        for ((index, profile) in profiles.withIndex()) {
                             val innerPlayer = Bukkit.getOfflinePlayer(profile.id.value)
 
                             append("§7${index + 1}º §8- §b${innerPlayer.name} §8- §6${XizumRank.getTextByRating(profile.rating)} §8- §6${profile.rating} PdC")
