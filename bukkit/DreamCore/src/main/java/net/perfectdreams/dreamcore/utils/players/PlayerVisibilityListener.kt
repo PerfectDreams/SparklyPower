@@ -2,8 +2,10 @@ package net.perfectdreams.dreamcore.utils.players
 
 import io.papermc.paper.event.player.PlayerTrackEntityEvent
 import net.perfectdreams.dreamcore.DreamCore
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.server.PluginDisableEvent
@@ -19,7 +21,9 @@ class PlayerVisibilityListener(val m: DreamCore) : Listener {
         }
     }
 
-    @EventHandler
+    // This MUST be in MONITOR priority, and other plugins should NOT use MONITOR priority
+    // If else, a plugin that is calling show/hide player during quit WILL cause issues when the player relogs
+    @EventHandler(priority = EventPriority.MONITOR)
     fun onQuit(e: PlayerQuitEvent) {
         m.removePlayerVisibilityManager(e.player)
     }
