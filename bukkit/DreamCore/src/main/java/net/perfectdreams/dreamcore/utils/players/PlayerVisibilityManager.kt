@@ -24,7 +24,7 @@ class PlayerVisibilityManager(val selfPlayer: Player) {
         }
     }
 
-    private val invertedVisibilityEntities: MutableMap<UUID, MutableSet<WeakReference<Plugin>>> = Object2ObjectOpenHashMap()
+    internal val invertedVisibilityEntities: MutableMap<UUID, MutableSet<WeakReference<Plugin>>> = Object2ObjectOpenHashMap()
 
     fun isHidden(player: Player): Boolean {
         return invertedVisibilityEntities.contains(player.uniqueId)

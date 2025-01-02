@@ -26,6 +26,13 @@ class PlayerVisibilityListener(val m: DreamCore) : Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     fun onQuit(e: PlayerQuitEvent) {
         m.removePlayerVisibilityManager(e.player)
+
+        // Also remove the player from ALL active visibility managers
+        // This is how Paper's showPlayer/hidePlayer also works
+        for (visibilityManager in m.playerVisibilityManagers) {
+            // Technically we don't need to use "show" because the player is quitting anyway
+            visibilityManager.value.invertedVisibilityEntities.remove(e.player.uniqueId)
+        }
     }
 
     @EventHandler
