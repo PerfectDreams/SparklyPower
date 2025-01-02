@@ -1,6 +1,7 @@
 package net.perfectdreams.dreamxizum.listeners
 
 import com.destroystokyo.paper.event.player.PlayerJumpEvent
+import net.perfectdreams.dreamcore.DreamCore
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.get
@@ -114,6 +115,22 @@ class BattleListener(val m: DreamXizum) : Listener {
             if (e.to.world.name != m.arenas.first().data.worldName) {
                 player.persistentDataContainer.remove(DreamXizum.IS_IN_CAMAROTE)
             }
+        }
+
+        if (DreamCore.dreamConfig.blacklistedWorldsTeleport.contains(e.to.world.name)) {
+            if (m.queue.any { it.player == e.player || it.opponent == e.player }) {
+                val request = m.queue.first { it.player == e.player }
+                m.queue.remove(request)
+
+                player.sendMessage(textComponent {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    append("Você foi removido da fila do x1!")
+                })
+                return
+            }
+
+            return
         }
 
         if (!m.activeBattles.any { it.player == e.player || it.opponent == e.player })

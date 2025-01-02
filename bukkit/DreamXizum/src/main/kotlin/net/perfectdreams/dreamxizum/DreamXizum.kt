@@ -155,7 +155,6 @@ class DreamXizum : KotlinPlugin() {
         arena.data = data
 
         updateConfigFile()
-
     }
 
     fun setRatingForPlayer(playerUniqueId: UUID, newRating: Int): XizumProfile? {

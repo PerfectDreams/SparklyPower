@@ -2,6 +2,7 @@ package net.perfectdreams.dreamxizum.structures
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
+import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.perfectdreams.dreamcore.utils.Databases
 import net.perfectdreams.dreamcore.utils.InstantFirework
@@ -25,6 +26,7 @@ import net.perfectdreams.dreamxizum.utils.XizumBattleMode
 import net.perfectdreams.dreamxizum.utils.XizumBattleResult
 import net.perfectdreams.dreamxizum.utils.XizumRank
 import org.bukkit.*
+import org.bukkit.entity.Arrow
 import org.bukkit.entity.Item
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
@@ -67,10 +69,15 @@ class XizumBattle(
             it.inUse = true
         }
 
-        m.server.broadcast(textComponent {
+        announceToAllPlayersInXizumWorld(textComponent {
             append(DreamXizum.prefix())
             appendSpace()
-            append("A batalha entre §b${player.displayName} §6e §b${opponent.displayName} §6está prestes a começar!") {
+            append("A batalha entre ")
+            append(player.displayName())
+            append(" e ")
+            append(opponent.displayName())
+            append(" está prestes a começar! Modo: ")
+            append(XizumBattleMode.prettify(mode.enum) ?: "Desconhecido") {
                 color(NamedTextColor.GOLD)
             }
         })
@@ -175,20 +182,50 @@ class XizumBattle(
 
         val winner = if (loser == player) opponent else player
 
-        m.arenas.first { it.data.arenaName == arena.data.arenaName }.let {
-            it.inUse = false
-        }
-
         val prettyReason = when (result) {
-            XizumBattleResult.DRAW -> "§6A batalha entre §b${player.displayName} §6e §b${opponent.displayName} §6terminou em empate!"
-            XizumBattleResult.KILLED -> "§b${winner.displayName} §atriunfou sobre §b${loser.displayName}§a! A batalha foi encerrada!"
-            XizumBattleResult.DISCONNECTION -> "§b${loser.displayName} §adesconectou-se da batalha! §b${winner.displayName} §aé o vencedor!"
-            XizumBattleResult.COULD_NOT_TELEPORT -> "§cNão foi possível teleportar §b${loser.displayName} §cpara a batalha! §b${winner.displayName} §aé o vencedor!"
-            XizumBattleResult.RAN -> "§b${loser.displayName} §afugiu da batalha! §b${winner.displayName} §aé o vencedor!"
-            XizumBattleResult.TIMEOUT -> "§cA batalha entre §b${player.displayName} §ce §b${opponent.displayName} §cdurou tanto que excedeu o tempo limite!"
+            XizumBattleResult.DRAW -> textComponent {
+                append("§6A batalha entre ")
+                append(player.displayName())
+                append(" §6e ")
+                append(opponent.displayName())
+                append(" §6terminou em empate!")
+            }
+
+            XizumBattleResult.KILLED -> textComponent {
+                append(winner.displayName())
+                append(" §atriunfou sobre ")
+                append(loser.displayName())
+                append("§a! A batalha foi encerrada!")
+            }
+            XizumBattleResult.DISCONNECTION -> textComponent {
+                append(loser.displayName())
+                append(" §adesconectou-se da batalha! ")
+                append(winner.displayName())
+                append(" §aé o vencedor!")
+            }
+            XizumBattleResult.COULD_NOT_TELEPORT -> textComponent {
+                append("§cNão foi possível teleportar ")
+                append(loser.displayName())
+                append(" §cpara a batalha! ")
+                append(winner.displayName())
+                append(" §aé o vencedor!")
+            }
+            XizumBattleResult.RAN -> textComponent {
+                append(loser.displayName())
+                append(" §bfugiu da batalha! ")
+                append(winner.displayName())
+                append(" §aé o vencedor!")
+            }
+            XizumBattleResult.TIMEOUT -> textComponent {
+                append("§cA batalha entre ")
+                append(player.displayName())
+                append(" §ce ")
+                append(opponent.displayName())
+                append(" §cterminou por tempo limite!")
+            }
         }
 
-        m.server.broadcast(textComponent {
+        announceToAllPlayersInXizumWorld(textComponent {
             append(DreamXizum.prefix())
             appendSpace()
             append(prettyReason)
@@ -206,9 +243,14 @@ class XizumBattle(
             opponentPreviousInventory = arrayOf()
         }
 
-        val items = winner.location.world.getNearbyEntities(winner.location, 100.0, 100.0, 100.0) { it is Item }
+        val items = player.location.world.getNearbyEntities(player.location, 100.0, 100.0, 100.0) { it is Item }
+        val arrows = player.location.world.getNearbyEntities(player.location, 100.0, 100.0, 100.0) { it is Arrow }
 
         items.forEach {
+            it.remove()
+        }
+
+        arrows.forEach {
             it.remove()
         }
 
@@ -281,7 +323,7 @@ class XizumBattle(
                     val currentRank = XizumRank.entries.lastOrNull { it.rating <= winnerTotalPoints }
 
                     if (previousRank != null && currentRank != previousRank) {
-                        m.server.broadcast(textComponent {
+                        announceToAllPlayersInXizumWorld(textComponent {
                             append(DreamXizum.prefix())
                             appendSpace()
                             append("§b${winner.displayName} §7subiu de rank de ${previousRank.text} §7para ${currentRank?.text}§7!")
@@ -338,6 +380,9 @@ class XizumBattle(
 
                 updatePlayerStatus(winner, true)
                 winner.teleportToServerSpawnWithEffectsAwait()
+                m.arenas.first { it.data.arenaName == arena.data.arenaName }.let {
+                    it.inUse = false
+                }
             }
         }
 
@@ -393,17 +438,24 @@ class XizumBattle(
 
         BattleListener.enderPearlCooldown.clear()
 
-        m.server.broadcast(textComponent {
+        announceToAllPlayersInXizumWorld(textComponent {
             append(DreamXizum.prefix())
             appendSpace()
-            append("A batalha entre §b${player.displayName} §6e §b${opponent.displayName} §6terminou em empate!") {
-                color(NamedTextColor.GOLD)
-            }
+            append("§6A batalha entre ")
+            append(player.displayName())
+            append(" §6e ")
+            append(opponent.displayName())
+            append(" §6terminou em empate!")
         })
 
         val items = player.location.world.getNearbyEntities(player.location, 100.0, 100.0, 100.0) { it is Item }
+        val arrows = player.location.world.getNearbyEntities(player.location, 100.0, 100.0, 100.0) { it is Arrow }
 
         items.forEach {
+            it.remove()
+        }
+
+        arrows.forEach {
             it.remove()
         }
 
@@ -427,5 +479,17 @@ class XizumBattle(
         updatePlayerStatus(opponent, true)
 
         m.activeBattles.remove(this)
+
+        m.arenas.first { it.data.arenaName == arena.data.arenaName }.let {
+            it.inUse = false
+        }
+    }
+
+    private fun announceToAllPlayersInXizumWorld(content: Component) {
+        m.server.onlinePlayers.forEach {
+            if (it.world.name == m.arenas.first().data.worldName) {
+                it.sendMessage(content)
+            }
+        }
     }
 }
