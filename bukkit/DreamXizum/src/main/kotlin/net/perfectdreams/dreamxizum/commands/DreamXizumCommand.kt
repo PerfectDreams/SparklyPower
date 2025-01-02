@@ -1,77 +1,471 @@
 package net.perfectdreams.dreamxizum.commands
 
-import net.perfectdreams.dreamcore.utils.commands.AbstractCommand
-import net.perfectdreams.dreamcore.utils.commands.ExecutedCommandException
-import net.perfectdreams.dreamcore.utils.commands.annotation.Subcommand
-import net.perfectdreams.dreamcore.utils.withoutPermission
+import net.kyori.adventure.text.format.NamedTextColor
+import net.perfectdreams.dreamcore.utils.adventure.append
+import net.perfectdreams.dreamcore.utils.adventure.appendCommand
+import net.perfectdreams.dreamcore.utils.commands.context.CommandArguments
+import net.perfectdreams.dreamcore.utils.commands.context.CommandContext
+import net.perfectdreams.dreamcore.utils.commands.declarations.SparklyCommandDeclarationWrapper
+import net.perfectdreams.dreamcore.utils.commands.declarations.sparklyCommand
+import net.perfectdreams.dreamcore.utils.commands.executors.SparklyCommandExecutor
+import net.perfectdreams.dreamcore.utils.commands.options.CommandOptions
+import net.perfectdreams.dreamcore.utils.generateCommandInfo
 import net.perfectdreams.dreamxizum.DreamXizum
-import net.perfectdreams.dreamxizum.utils.ArenaXizum
-import org.bukkit.command.Command
-import org.bukkit.command.CommandSender
-import org.bukkit.entity.Player
+import net.perfectdreams.dreamxizum.utils.XizumBattleMode
+import net.perfectdreams.dreamxizum.utils.config.XizumPluginConfig
+import org.bukkit.Bukkit
 
-class DreamXizumCommand(val m: DreamXizum) : AbstractCommand("dreamxizum", permission = "dreamxizum.setup") {
-	@Subcommand
-	fun root(sender: CommandSender) {
-		sender.sendMessage("§e/dreamxizum create name")
-		sender.sendMessage("§e/dreamxizum delete name")
-		sender.sendMessage("§e/dreamxizum clean name")
-		sender.sendMessage("§e/dreamxizum pos1 name")
-		sender.sendMessage("§e/dreamxizum pos2 name")
-		sender.sendMessage("§e/dreamxizum ready name true/false")
-	}
+class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
+    override fun declaration() = sparklyCommand(listOf("dreamxizum")) {
+        permission = "dreamxizum.setup"
 
-	/* @Subcommand(["create"])
-	fun create(player: CommandSender, name: String) {
-		m.arenas.add(ArenaXizum(name))
-		player.sendMessage("§aArena §e${name}§a criada com sucesso!")
-		m.saveArenas()
-	}
+        subcommand(listOf("arenas")) {
+            executor = DreamXizumArenasCommandExecutor()
+        }
 
-	@Subcommand(["delete"])
-	fun delete(sender: CommandSender, name: String) {
-		val arena = getArena(name)
+        subcommand(listOf("createarena")) {
+            executor = DreamXizumCreateArenaCommandExecutor()
+        }
 
-		m.arenas.remove(arena)
-		sender.sendMessage("§aArena §e${name}§a deletada com sucesso!")
-		m.saveArenas()
-	}
+        subcommand(listOf("deletearena")) {
+            executor = DreamXizumDeleteArenaCommandExecutor()
+        }
 
-	@Subcommand(["clean"])
-	fun clean(sender: CommandSender, name: String) {
-		val arena = getArena(name)
+        subcommand(listOf("setpos")) {
+            executor = DreamXizumSetPosCommandExecutor()
+        }
 
-		arena.player1 = null
-		arena.player2 = null
-		sender.sendMessage("§aArena §e${name}§a foi limpa com sucesso!")
-	}
+        subcommand(listOf("teleport")) {
+            executor = DreamXizumTeleportCommandExecutor()
+        }
 
-	@Subcommand(["pos1"])
-	fun pos1(player: Player, name: String) {
-		val arena = getArena(name)
+        subcommand(listOf("setspectator")) {
+            executor = DreamXizumSetSpectatorCommandExecutor()
+        }
 
-		arena.location1 = player.location
-		player.sendMessage("§aLocalização 1 da arena §e${name}§a alterada com sucesso!")
-		m.saveArenas()
-	}
+        subcommand(listOf("setarenamode")) {
+            executor = DreamXizumSetArenaModeCommandExecutor()
+        }
 
-	@Subcommand(["pos2"])
-	fun pos2(player: Player, name: String) {
-		val arena = getArena(name)
+        subcommand(listOf("setpdc")) {
+            executor = DreamXizumSetCombatPointsCommandExecutor()
+        }
 
-		arena.location2 = player.location
-		player.sendMessage("§aLocalização 2 da arena §e${name}§a alterada com sucesso!")
-		m.saveArenas()
-	}
+        // the root command will explain how to use the rest of the commands
+        executor = DreamXizumCommandExecutor()
+    }
 
-	@Subcommand(["ready"])
-	fun ready(player: CommandSender, name: String, value: String) {
-		val arena = getArena(name)
+    inner class DreamXizumCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val commands = listOf(
+                "§6§l/dreamxizum arenas §7- §eVer as arenas disponíveis",
+                "§6§l/dreamxizum createarena §7- §eCriar uma nova arena",
+                "§6§l/dreamxizum deletearena <arena-id> §7- §eDeletar uma arena",
+                "§6§l/dreamxizum setpos <arena-id> <for-player> §7- §eSetar a posição de um jogador/oponente",
+                "§6§l/dreamxizum teleport <arena-id> §7- §eTeleportar para uma arena",
+                "§6§l/dreamxizum setspectator §7- §eSetar a posição de espectador",
+                "§6§l/dreamxizum setarenamode <arena-id> <mode> §7- §eSetar o modo de uma arena",
+                "§6§l/dreamxizum setpdc <player> <points> §7- §eSetar os pontos de combate de um jogador"
+            )
 
-		arena.isReady = value == "true"
-		player.sendMessage("§aArena §e${name}§a foi alterada com sucesso!")
-		m.saveArenas()
-	}
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                append("Comandos disponíveis:") {
+                    color(NamedTextColor.GREEN)
+                }
 
-	fun getArena(name: String): ArenaXizum = m.getArenaByName(name) ?: throw ExecutedCommandException("§cNão existe nenhuma arena com o nome §e${name}§c!") */
+                commands.forEach {
+                    append("\n §7- $it")
+                }
+            }
+        }
+    }
+
+    inner class DreamXizumArenasCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                if (m.arenas.isEmpty()) {
+                    color(NamedTextColor.RED)
+                    append("Não existem arenas!")
+                } else {
+                    append("Arenas disponíveis:") {
+                        color(NamedTextColor.GREEN)
+                    }
+                }
+
+                m.arenas.forEach {
+                    append("\n §7- §e§lArena: §a${it.data.id}")
+                    append("\n  §7- §e§lWorld: §a${it.data.worldName}")
+
+                    append("\n  §7- §e§lPlayer Pos: ")
+                    if (it.playerPos != null) {
+                        append("§a(${Math.round(it.playerPos.x)}; ${Math.round(it.playerPos.y)}; ${Math.round(it.playerPos.z)})")
+
+                    } else {
+                        append("§cNenhuma, use ")
+                        appendCommand("/dreamxizum setpos <arena-id> player")
+                    }
+
+                    append("\n  §7- §e§lOpponent Pos: ")
+
+                    if (it.opponentPos != null) {
+                        append("§a(${Math.round(it.opponentPos.x)}; ${Math.round(it.opponentPos.y)}; ${Math.round(it.opponentPos.z)})")
+                    } else {
+                        append("§cNenhuma, use ")
+                        appendCommand("/dreamxizum setpos <arena-id> opponent")
+                    }
+
+                    append("\n  §7- §e§lModo: ")
+                    if (it.data.mode != null) {
+                        append("§a${XizumBattleMode.prettify(it.data.mode)}")
+                    } else {
+                        append("§cNenhum, use ")
+                        appendCommand("/dreamxizum setarenamode <arena-id> <mode>")
+                    }
+                }
+            }
+        }
+    }
+
+    inner class DreamXizumCreateArenaCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+
+            val arenaId = if (m.arenas.isEmpty()) {
+                0
+            } else {
+                m.arenas.maxByOrNull { it.data.id }!!.data.id + 1
+            }
+
+            val arena = XizumPluginConfig.XizumArenaConfig(
+                arenaId,
+                player.world.name,
+                null,
+                null,
+            )
+
+            m.createArena(arena)
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Arena §b${arenaId} §acriada com sucesso!")
+            }
+        }
+    }
+
+    inner class DreamXizumDeleteArenaCommandExecutor : SparklyCommandExecutor() {
+        inner class Options : CommandOptions() {
+            val arenaId = optionalInteger("arena-id")
+        }
+
+        override val options = Options()
+
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val arenaId = args[options.arenaId] ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum deletearena", mapOf("<arena-id>" to "ID da arena (indexado (0, 1, 2)")))
+                }
+                return
+            }
+
+            if (m.arenas.none { it.data.id == arenaId }) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Não existe uma arena com o ID especificado!")
+                }
+                return
+            }
+
+            m.deleteArena(arenaId)
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Arena deletada com sucesso!")
+            }
+        }
+    }
+
+    inner class DreamXizumSetPosCommandExecutor : SparklyCommandExecutor() {
+        inner class Options : CommandOptions() {
+            val arenaId = optionalInteger("arena-id") { context, builder ->
+                m.arenas.forEach { payload ->
+                    builder.suggest(payload.data.id.toString())
+                }
+            }
+
+            val forPlayer = optionalWord("for-player") { context, builder ->
+                builder.suggest("player")
+                builder.suggest("opponent")
+            }
+        }
+
+        override val options = Options()
+
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+            val arenaId = args[options.arenaId] ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum setpos", mapOf("<arena-id>" to "ID da arena (indexado (0, 1, 2)", "<for-player>" to "player/opponent")))
+                }
+                return
+            }
+            val forPlayer = args[options.forPlayer] ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum setpos", mapOf("<arena-id>" to "ID da arena (indexado (0, 1, 2)", "<for-player>" to "player/opponent")))
+                }
+                return
+            }
+
+            val arena = m.arenas.firstOrNull { it.data.id == arenaId } ?: run {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Não existe uma arena com o ID especificado!")
+                }
+                return
+            }
+
+            val playerPosition = player.location
+
+            when (forPlayer) {
+                "player" -> {
+                    arena.data.playerPos = XizumPluginConfig.Location(
+                        playerPosition.x,
+                        playerPosition.y,
+                        playerPosition.z,
+                        playerPosition.yaw,
+                        playerPosition.pitch
+                    )
+                }
+                "opponent" -> {
+                    arena.data.opponentPos = XizumPluginConfig.Location(
+                        playerPosition.x,
+                        playerPosition.y,
+                        playerPosition.z,
+                        playerPosition.yaw,
+                        playerPosition.pitch
+                    )
+                }
+            }
+
+            m.updateArena(arenaId, arena.data)
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Posição de §b$forPlayer §aatualizada com sucesso!")
+            }
+        }
+    }
+
+    inner class DreamXizumTeleportCommandExecutor : SparklyCommandExecutor() {
+        inner class Options : CommandOptions() {
+            val arenaId = optionalInteger("arena-id") { context, builder ->
+                m.arenas.forEach { payload ->
+                    builder.suggest(payload.data.id.toString())
+                }
+            }
+        }
+
+        override val options = Options()
+
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+            val arenaId = args[options.arenaId] ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum teleport", mapOf("<arena-id>" to "ID da arena (indexado (0, 1, 2)")))
+                }
+                return
+            }
+
+            val arena = m.getArena(arenaId) ?: run {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Não existe uma arena com o ID especificado!")
+                }
+                return
+            }
+
+            val playerPosition = arena.playerPos ?: run {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("A arena não possui uma posição de jogador!")
+                }
+                return
+            }
+
+            if (!player.teleport(playerPosition)) {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Não foi possível te teletransportar para a arena!")
+                }
+                return
+            }
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Teleportado para a arena §b${arenaId} §acom sucesso!")
+            }
+        }
+    }
+
+    inner class DreamXizumSetSpectatorCommandExecutor : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = context.requirePlayer()
+
+            val playerPosition = player.location
+
+            m.config.spectatorPos = XizumPluginConfig.Location(
+                playerPosition.x,
+                playerPosition.y,
+                playerPosition.z,
+                playerPosition.yaw,
+                playerPosition.pitch
+            )
+
+            m.updateConfigFile()
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Posição de espectador atualizada com sucesso!")
+            }
+        }
+    }
+
+    inner class DreamXizumSetArenaModeCommandExecutor : SparklyCommandExecutor() {
+        inner class Options : CommandOptions() {
+            val arenaId = optionalInteger("arena-id") { context, builder ->
+                m.arenas.forEach { payload ->
+                    builder.suggest(payload.data.id.toString())
+                }
+            }
+
+            val mode = optionalWord("mode") { context, builder ->
+                builder.suggest("standard")
+                builder.suggest("pvp_with_soup")
+                builder.suggest("pvp_with_potion")
+                builder.suggest("competitive")
+            }
+        }
+
+        override val options = Options()
+
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val arenaId = args[options.arenaId] ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum setarenamode", mapOf("<arena-id>" to "ID da arena (indexado (0, 1, 2))", "<mode>" to "standard/pvp_with_soup/pvp_with_potion/competitive/custom")))
+                }
+                return
+            }
+            val mode = args[options.mode] ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum setarenamode", mapOf("<arena-id>" to "ID da arena (indexado (0, 1, 2))", "<mode>" to "standard/pvp_with_soup/pvp_with_potion/competitive/custom")))
+                }
+                return
+            }
+
+            val arena = m.arenas.firstOrNull { it.data.id == arenaId } ?: run {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Não existe uma arena com o ID especificado!")
+                }
+                return
+            }
+
+            arena.data.mode = when (mode) {
+                "standard" -> XizumBattleMode.STANDARD
+                "pvp_with_soup" -> XizumBattleMode.PVP_WITH_SOUP
+                "pvp_with_potion" -> XizumBattleMode.PVP_WITH_POTION
+                "competitive" -> XizumBattleMode.COMPETITIVE
+                else -> {
+                    context.sendMessage {
+                        append(DreamXizum.prefix())
+                        appendSpace()
+                        color(NamedTextColor.RED)
+                        append("Modo inválido! Modos válidos: §bstandard§c, §bpvp_with_soup§c, §bpvp_with_potion§c, §bcompetitive")
+                    }
+                    return
+                }
+            }
+
+            m.updateArena(arenaId, arena.data)
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Modo da arena atualizado com sucesso!")
+            }
+        }
+    }
+
+    inner class DreamXizumSetCombatPointsCommandExecutor : SparklyCommandExecutor() {
+        inner class Options : CommandOptions() {
+            val player = optionalWord("player") { _, builder ->
+                Bukkit.getOnlinePlayers().forEach {
+                    builder.suggest(it.name)
+                }
+            }
+
+            val points = optionalInteger("points")
+        }
+
+        override val options = Options()
+
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = args[options.player]?.let { Bukkit.getOfflinePlayer(it) } ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum setpdc", mapOf("<player>" to "Nome do jogador", "<points>" to "Quantidade de pontos de combate")))
+                }
+                return
+            }
+            val points = args[options.points] ?: run {
+                context.sendMessage {
+                    append(generateCommandInfo("dreamxizum setpdc", mapOf("<player>" to "Nome do jogador", "<points>" to "Quantidade de pontos de combate")))
+                }
+                return
+            }
+
+            val result = m.setRatingForPlayer(player.uniqueId, points) ?: run {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("Não foi possível atualizar os pontos de combate de ${player.name}!")
+                }
+
+                return
+            }
+
+            context.sendMessage {
+                append(DreamXizum.prefix())
+                appendSpace()
+                color(NamedTextColor.GREEN)
+                append("Pontos de combate de ${player.name} atualizados com sucesso! Agora ele tem ${result.rating} pontos de combate!")
+            }
+        }
+    }
 }

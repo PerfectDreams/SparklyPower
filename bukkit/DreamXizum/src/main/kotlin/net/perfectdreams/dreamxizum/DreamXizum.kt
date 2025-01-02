@@ -1,144 +1,322 @@
 package net.perfectdreams.dreamxizum
 
-import kotlinx.serialization.decodeFromString
+import com.okkero.skedule.schedule
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import net.perfectdreams.dreamcore.utils.KotlinPlugin
-import net.perfectdreams.dreamcore.utils.registerEvents
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
+import net.perfectdreams.dreamcore.utils.*
+import net.perfectdreams.dreamcore.utils.adventure.append
+import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamxizum.commands.DreamXizumCommand
 import net.perfectdreams.dreamxizum.commands.XizumCommand
-import net.perfectdreams.dreamxizum.listeners.XizumListener
-import net.perfectdreams.dreamxizum.utils.ArenaXizum
-import net.perfectdreams.dreamxizum.utils.RequestQueueEntry
-import net.perfectdreams.dreamxizum.utils.WinType
-import net.perfectdreams.dreamxizum.utils.XizumRequest
-import org.bukkit.Bukkit
-import org.bukkit.entity.Player
+import net.perfectdreams.dreamxizum.listeners.BattleListener
+import net.perfectdreams.dreamxizum.listeners.XizumRequestInventoryListener
+import net.perfectdreams.dreamxizum.listeners.XizumCustomRequestInventoryListener
+import net.perfectdreams.dreamxizum.modes.vanilla.*
+import net.perfectdreams.dreamxizum.structures.XizumArena
+import net.perfectdreams.dreamxizum.structures.XizumBattle
+import net.perfectdreams.dreamxizum.structures.XizumBattleRequest
+import net.perfectdreams.dreamxizum.tables.XizumProfiles
+import net.perfectdreams.dreamxizum.tables.dao.XizumProfile
+import net.perfectdreams.dreamxizum.utils.*
+import net.perfectdreams.dreamxizum.utils.config.XizumPluginConfig
 import org.bukkit.event.Listener
+import org.bukkit.persistence.PersistentDataType
+import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
+import java.util.UUID
+import kotlin.math.abs
 
-class DreamXizum : KotlinPlugin(), Listener {
-	companion object {
-		const val PREFIX = "§8[§4§lXiz§c§lum§8]§e"
-		const val XIZUM_DATA_KEY = "XizumData"
-	}
+class DreamXizum : KotlinPlugin() {
+    companion object {
+        fun prefix() = textComponent {
+            append("[") {
+                color(NamedTextColor.DARK_GRAY)
+            }
+            append("Xizum") {
+                color(NamedTextColor.BLUE)
+                decorate(TextDecoration.BOLD)
+            }
+            append("]") {
+                color(NamedTextColor.DARK_GRAY)
+            }
+        }
 
-	val arenas = mutableListOf<ArenaXizum>()
-	val requestQueue = mutableListOf<RequestQueueEntry>()
-	val requests = mutableListOf<XizumRequest>()
-	val queue = mutableListOf<Player>()
+        val IS_IN_CAMAROTE = SparklyNamespacedKey("is_in_camarote", PersistentDataType.BOOLEAN)
 
-	override fun softEnable() {
-		super.softEnable()
+        lateinit var INSTANCE: DreamXizum
 
-		registerCommand(XizumCommand(this))
-		registerCommand(DreamXizumCommand(this))
+        private val json = Json {
+            ignoreUnknownKeys = true
+        }
+    }
 
-		registerEvents(XizumListener(this))
+    private val configFile = File(dataFolder, "config.json")
+    lateinit var config: XizumPluginConfig
 
-		loadArenas()
-	}
+    var arenas = mutableSetOf<XizumArena>()
+    val activeBattles = mutableSetOf<XizumBattle>()
+    val queue = mutableSetOf<XizumBattleRequest>()
 
-	override fun softDisable() {
-		super.softDisable()
+    override fun softEnable() {
+        super.softEnable()
 
-		for (arena in arenas) {
-			val p1 = arena.player1
-			val p2 = arena.player2
+        preload()
 
-			if (p1 != null && p2 != null) {
-				arena.finishArena(p1, WinType.TIMEOUT)
-			}
-		}
-	}
+        INSTANCE = this
 
-	fun addToQueue(player: Player) {
-		queue.add(player)
-		checkQueue()
-	}
+        registerCommand(DreamXizumCommand(this))
+        registerCommand(XizumCommand(this))
 
-	fun addToRequestQueue(player1: Player, player2: Player) {
-		requestQueue.add(RequestQueueEntry(player1, player2))
-		checkQueue()
-	}
+        registerEvents(BattleListener(this))
+        registerEvents(XizumRequestInventoryListener(this))
+        registerEvents(XizumCustomRequestInventoryListener(this))
 
-	fun checkQueue() {
-		while (queue.size >= 2) { // While there are two players in the queue...
-			val queued1 = queue[0]
-			val queued2 = queue[1]
+        startQueueCheckTask()
 
-			if (!queued1.isValid || !queued1.isOnline) {
-				// Invalid, remove them from the queue
-				queue.remove(queued1)
-				continue
-			}
+        transaction(Databases.databaseNetwork) {
+            SchemaUtils.createMissingTablesAndColumns(XizumProfiles)
+        }
+    }
 
-			if (!queued2.isValid || !queued2.isOnline) {
-				// Invalid, remove them from the queue
-				queue.remove(queued2)
-				continue
-			}
+    override fun softDisable() {
+        super.softDisable()
 
-			// We will now add them to our request queue!
-			requestQueue.add(
-				RequestQueueEntry(
-					queued1,
-					queued2
-				)
-			)
+        cleanup()
+    }
 
-			// And remove them from our queue
-			queue.remove(queued1)
-			queue.remove(queued2)
-		}
-		while (requestQueue.isNotEmpty()) { // While there are request entries in the queue...
-			val request = requestQueue[0]
-			val queued1 = request.player1
-			val queued2 = request.player2
+    private fun cleanup() {
+        arenas.clear()
+        activeBattles.filter { it.started || it.countdown }.forEach { it.draw() }
+        activeBattles.clear()
+    }
 
-			if (!queued1.isValid || !queued1.isOnline) {
-				requestQueue.remove(request)
-				queued2.sendMessage("§cVocê saiu da fila do Xizum pois o player que iria ir na partida com você saiu da fila...")
-				continue
-			}
+    private fun createConfigFile() {
+        if (!configFile.exists()) {
+            val content = """
+                {
+                    "spectatorPos": null,
+                    "arenas": []
+                }
+            """.trimIndent()
 
-			if (!queued2.isValid || !queued2.isOnline) {
-				requestQueue.remove(request)
-				queued1.sendMessage("§cVocê saiu da fila do Xizum pois o player que iria ir na partida com você saiu da fila...")
-				continue
-			}
+            configFile.writeText(content)
+        }
+    }
 
-			// Vamos pegar a primeira arena disponível para o nosso X1
-			// Caso retorne null, cancele a verificação de queue já que não existem mais arenas disponíveis
-			val arena = arenas.firstOrNull { it.data.isReady && it.player1 == null } ?: return
+    private fun startQueueCheckTask() {
+        scheduler().runTaskTimer(this, Runnable {
+            XizumBattleMode.entries.forEach {
+                checkQueue(it)
+            }
+        }, 0, 20L)
+    }
 
-			requestQueue.remove(request)
+    private fun preload() {
+        if (!configFile.exists()) createConfigFile()
+        config = json.decodeFromString<XizumPluginConfig>(configFile.readText())
 
-			// omg todos são válidos??? yay??? não sei :X
-			arena.startArena(queued1, queued2)
-		}
-	}
+        config.arenas.forEach {
+            arenas.add(
+                XizumArena(
+                    it,
+                    it.playerPos?.toBukkitLocation(it.worldName),
+                    it.opponentPos?.toBukkitLocation(it.worldName)
+                )
+            )
+        }
+    }
 
-	fun saveArenas() {
-		val arenasFolder = File(dataFolder, "arenas")
+    fun createArena(arenaConfig: XizumPluginConfig.XizumArenaConfig) {
+        val builtArena = XizumArena(arenaConfig, null, null)
 
-		arenasFolder.deleteRecursively()
-		arenasFolder.mkdirs()
+        arenas.add(builtArena)
 
-		arenas.forEach {
-			File(arenasFolder, "${it.data.name}.json").writeText(Json.encodeToString(it.data))
-		}
-	}
+        updateConfigFile()
+    }
 
-	fun loadArenas() {
-		val arenasFolder = File(dataFolder, "arenas")
+    fun deleteArena(id: Int) {
+        val arena = arenas.firstOrNull { it.data.id == id } ?: return
 
-		arenasFolder.listFiles().forEach {
-			arenas.add(ArenaXizum(this, Json.decodeFromString(it.readText())))
-		}
-	}
+        arenas.remove(arena)
 
-	fun getArenaByName(name: String): ArenaXizum? {
-		return arenas.firstOrNull { it.data.name == name }
-	}
+        updateConfigFile()
+    }
+
+    fun updateArena(id: Int, data: XizumPluginConfig.XizumArenaConfig) {
+        val arena = arenas.firstOrNull { it.data.id == id } ?: return
+
+        arena.data = data
+
+        updateConfigFile()
+
+    }
+
+    fun setRatingForPlayer(playerUniqueId: UUID, newRating: Int): XizumProfile? {
+        return try {
+            transaction(Databases.databaseNetwork) {
+                val profile = XizumProfile.findOrCreate(playerUniqueId)
+                profile.rating = newRating
+                profile
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    private fun updateRuntimeArenas() {
+        arenas = config.arenas.map { XizumArena(it, it.playerPos?.toBukkitLocation(it.worldName), it.opponentPos?.toBukkitLocation(it.worldName)) }.toMutableSet()
+    }
+
+    fun updateConfigFile() {
+        val arenasData = arenas.map { it.data }.toMutableList()
+
+        config.arenas = arenasData
+
+        configFile.writeText(json.encodeToString(config))
+
+        updateRuntimeArenas()
+    }
+
+    fun getArena(id: Int) = arenas.firstOrNull { it.data.id == id }
+
+    fun notifyNoArena(playerRequest: XizumBattleRequest, otherRequest: XizumBattleRequest) {
+        listOf(playerRequest.player, otherRequest.player).forEach { player ->
+            player.sendMessage(textComponent {
+                append(prefix())
+                appendSpace()
+                append("Não foi possível encontrar uma arena disponível! Tente novamente mais tarde.") {
+                    color(NamedTextColor.RED)
+                }
+            })
+        }
+    }
+
+    private fun checkQueue(mode: XizumBattleMode) {
+        scheduler().schedule(this) {
+            while (queue.isNotEmpty()) {
+                for (request in queue) {
+                    val duration = (System.currentTimeMillis() - request.time) / 1000
+                    val timeFormatted = String.format("%02d:%02d", (duration % 3600) / 60, duration % 60)
+
+                    request.player.sendActionBar(textComponent {
+                        append("Procurando um oponente...") {
+                            color(NamedTextColor.GOLD)
+                        }
+                        when (duration) {
+                            in 0..60 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.GREEN) }
+                            in 61..120 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.YELLOW) }
+                            else -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.RED) }
+                        }
+                    })
+                }
+
+                waitFor(20)
+            }
+        }
+
+        when (mode) {
+            XizumBattleMode.CUSTOM -> {
+                for (request in queue) {
+                    if (request.time > (System.currentTimeMillis() + (60 * 1000))) {
+                        queue.remove(request)
+
+                        request.player.sendActionBar(textComponent {
+                            append("O seu convite para ${request.opponent!!.displayName} foi expirado!") {
+                                color(NamedTextColor.RED)
+                            }
+                        })
+
+                        // if it's a request, we can non-null assert it because a x1 challenge needs an opponent.
+                        request.opponent!!.sendMessage(textComponent {
+                            append("O convite de ${request.player.displayName} para você foi expirado!") {
+                                color(NamedTextColor.RED)
+                            }
+                        })
+                    }
+                }
+            }
+
+            else -> {
+                if (queue.size < 2) return
+
+                val (playerRequest, otherRequest) = findMatchRequests(mode) ?: return
+
+                queue.removeAll(setOf(playerRequest, otherRequest))
+
+                val arena = arenas.filter { !it.inUse && it.data.mode == mode }.randomOrNull() ?: return notifyNoArena(playerRequest, otherRequest)
+
+                if (arena.data.mode == null) {
+                    listOf(playerRequest.player, otherRequest.player).forEach { player ->
+                        player.sendMessage(textComponent {
+                            append(prefix())
+                            appendSpace()
+                            append("A arena §b${arena.data.id} §cnão possui um modo de jogo definido! Reporte à staff do servidor!") {
+                                color(NamedTextColor.RED)
+                            }
+                        })
+                    }
+                }
+
+                val newMode = when (mode) {
+                    XizumBattleMode.STANDARD -> StandardXizumMode(this)
+                    XizumBattleMode.PVP_WITH_SOUP -> PvPWithSoupXizumMode(this)
+                    XizumBattleMode.PVP_WITH_POTION -> PvPWithPotionXizumMode(this)
+                    XizumBattleMode.COMPETITIVE -> CompetitiveXizumMode(this)
+                    else -> null // should never happen
+                }
+
+                if (newMode != null) {
+                    val battle = XizumBattle(this, arena, newMode, playerRequest.player, otherRequest.player)
+                    battle.start()
+                    activeBattles.add(battle)
+                }
+            }
+        }
+    }
+
+    private fun findMatchRequests(mode: XizumBattleMode): Pair<XizumBattleRequest, XizumBattleRequest>? {
+        when (mode) {
+            XizumBattleMode.COMPETITIVE -> {
+                // Players with a rating difference of 150 or less can be matched
+                // If the user doesn't have this rating difference, the player will need to wait 120 seconds to be matched with anyone in the queue
+                // If the player with more rating loses... well, that's their fault for being too cocky
+                val ratingDifferenceThreshold = 150
+                val maxWaitTime = 120 * 1000
+                val availableRequests = queue.filter { it.mode.enum == mode && it.opponent == null }
+
+                for (playerRequest in availableRequests) {
+                    val player = transaction(Databases.databaseNetwork) {
+                        XizumProfile.findOrCreate(playerRequest.player.uniqueId)
+                    }
+
+                    val matchingPlayer = availableRequests.firstOrNull {
+                        val otherPlayer = transaction(Databases.databaseNetwork) {
+                            XizumProfile.findOrCreate(it.player.uniqueId)
+                        }
+
+                        val timeInQueue = System.currentTimeMillis() - playerRequest.time
+                        val relaxedThreshold = if (timeInQueue > maxWaitTime) Int.MAX_VALUE else ratingDifferenceThreshold
+
+                        it != playerRequest && abs(otherPlayer.rating - player.rating) <= relaxedThreshold
+                    }
+
+                    if (matchingPlayer != null) {
+                        return Pair(playerRequest, matchingPlayer)
+                    }
+                }
+            }
+
+            else -> {
+                val playerRequest = queue.filter { it.mode.enum == mode && it.opponent == null }.randomOrNull() ?: return null
+                val otherRequest = queue.filter { it.mode.enum == mode && it.opponent == null && it.player != playerRequest.player }.randomOrNull() ?: return null
+                return Pair(playerRequest, otherRequest)
+            }
+        }
+
+        return null
+    }
 }
