@@ -21,6 +21,7 @@ import net.perfectdreams.dreamcore.utils.adventure.appendCommand
 import net.perfectdreams.dreamcore.utils.adventure.appendTextComponent
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.extensions.teleportToServerSpawn
+import net.perfectdreams.dreamcore.utils.extensions.teleportToServerSpawnWithEffects
 import net.perfectdreams.dreamcore.utils.npc.SkinTexture
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import org.bukkit.*
@@ -888,7 +889,7 @@ sealed class SparklyTutorial(val playerTutorial: PlayerTutorial) {
             )
 
             playerTutorial.m.endTutorial(playerTutorial.player)
-            playerTutorial.player.teleportToServerSpawn()
+            playerTutorial.player.teleportToServerSpawnWithEffects()
             for (staff in Bukkit.getOnlinePlayers().asSequence().filter { it.hasPermission("dreamajuda.snooptutorial") }) {
                 staff.sendMessage(
                     textComponent {

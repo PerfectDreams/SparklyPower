@@ -19,6 +19,7 @@ import net.perfectdreams.dreamcore.utils.commands.context.CommandArguments
 import net.perfectdreams.dreamcore.utils.commands.context.CommandContext
 import net.perfectdreams.dreamcore.utils.commands.executors.SparklyCommandExecutor
 import net.perfectdreams.dreamcore.utils.extensions.teleportToServerSpawn
+import net.perfectdreams.dreamcore.utils.extensions.teleportToServerSpawnWithEffects
 import net.perfectdreams.dreamcore.utils.extensions.teleportToServerSpawnWithEffectsAwait
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamcore.utils.scheduler.onMainThread
@@ -58,7 +59,7 @@ class SkipTutorialExecutor(val m: DreamAjuda) : SparklyCommandExecutor() {
                 }
             }
             m.endTutorial(player)
-            player.teleportToServerSpawn()
+            player.teleportToServerSpawnWithEffects()
             for (staff in Bukkit.getOnlinePlayers().asSequence().filter { it.hasPermission("dreamajuda.snooptutorial") }) {
                 staff.sendMessage(
                     textComponent {
