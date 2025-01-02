@@ -16,6 +16,15 @@ import net.perfectdreams.dreamxizum.utils.config.XizumPluginConfig
 import org.bukkit.Bukkit
 
 class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
+    companion object {
+        val arenaModes = listOf(
+            "standard",
+            "pvpWithSoup",
+            "pvpWithPotion",
+            "competitive"
+        )
+    }
+
     override fun declaration() = sparklyCommand(listOf("dreamxizum")) {
         permission = "dreamxizum.setup"
 
@@ -23,15 +32,15 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
             executor = DreamXizumArenasCommandExecutor()
         }
 
-        subcommand(listOf("createarena")) {
+        subcommand(listOf("createArena")) {
             executor = DreamXizumCreateArenaCommandExecutor()
         }
 
-        subcommand(listOf("deletearena")) {
+        subcommand(listOf("deleteArena")) {
             executor = DreamXizumDeleteArenaCommandExecutor()
         }
 
-        subcommand(listOf("setpos")) {
+        subcommand(listOf("setPos")) {
             executor = DreamXizumSetPosCommandExecutor()
         }
 
@@ -39,15 +48,15 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
             executor = DreamXizumTeleportCommandExecutor()
         }
 
-        subcommand(listOf("setspectator")) {
+        subcommand(listOf("setSpectator")) {
             executor = DreamXizumSetSpectatorCommandExecutor()
         }
 
-        subcommand(listOf("setarenamode")) {
+        subcommand(listOf("setArenaMode")) {
             executor = DreamXizumSetArenaModeCommandExecutor()
         }
 
-        subcommand(listOf("setpdc")) {
+        subcommand(listOf("setPdc")) {
             executor = DreamXizumSetCombatPointsCommandExecutor()
         }
 
@@ -59,13 +68,13 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         override fun execute(context: CommandContext, args: CommandArguments) {
             val commands = listOf(
                 "§6§l/dreamxizum arenas §7- §eVer as arenas disponíveis",
-                "§6§l/dreamxizum createarena §7- §eCriar uma nova arena",
-                "§6§l/dreamxizum deletearena <arenaName> §7- §eDeletar uma arena",
-                "§6§l/dreamxizum setpos <arenaName> <forPlayer> §7- §eSetar a posição de um jogador/oponente",
+                "§6§l/dreamxizum createArena §7- §eCriar uma nova arena",
+                "§6§l/dreamxizum deleteArena <arenaName> §7- §eDeletar uma arena",
+                "§6§l/dreamxizum setPos <arenaName> <forPlayer> §7- §eSetar a posição de um jogador/oponente",
                 "§6§l/dreamxizum teleport <arenaName> §7- §eTeleportar para uma arena",
-                "§6§l/dreamxizum setspectator §7- §eSetar a posição de espectador",
-                "§6§l/dreamxizum setarenamode <arenaName> <mode> §7- §eSetar o modo de uma arena",
-                "§6§l/dreamxizum setpdc <player> <points> §7- §eSetar os pontos de combate de um jogador"
+                "§6§l/dreamxizum setSpectator §7- §eSetar a posição de espectador",
+                "§6§l/dreamxizum setArenaMode <arenaName> <mode> §7- §eSetar o modo de uma arena",
+                "§6§l/dreamxizum setPdc <player> <points> §7- §eSetar os pontos de combate de um jogador"
             )
 
             context.sendMessage {
@@ -106,7 +115,7 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
 
                     } else {
                         append("§cNenhuma, use ")
-                        appendCommand("/dreamxizum setpos <arenaName> player")
+                        appendCommand("/dreamxizum setPos <arenaName> player")
                     }
 
                     append("\n  §7- §e§lOpponent Pos: ")
@@ -115,7 +124,7 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                         append("§a(${Math.round(it.opponentPos.x)}; ${Math.round(it.opponentPos.y)}; ${Math.round(it.opponentPos.z)})")
                     } else {
                         append("§cNenhuma, use ")
-                        appendCommand("/dreamxizum setpos <arenaName> opponent")
+                        appendCommand("/dreamxizum setPos <arenaName> opponent")
                     }
 
                     append("\n  §7- §e§lModo: ")
@@ -123,7 +132,7 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                         append("§a${XizumBattleMode.prettify(it.data.mode)}")
                     } else {
                         append("§cNenhum, use ")
-                        appendCommand("/dreamxizum setarenamode <arenaName> <mode>")
+                        appendCommand("/dreamxizum setArenaMode <arenaName> <mode>")
                     }
                 }
             }
@@ -179,7 +188,7 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         override fun execute(context: CommandContext, args: CommandArguments) {
             val arenaId = args[options.arenaName] ?: run {
                 context.sendMessage {
-                    append(generateCommandInfo("dreamxizum deletearena", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2)")))
+                    append(generateCommandInfo("dreamxizum deleteArena", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2)")))
                 }
                 return
             }
@@ -221,13 +230,13 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
             val player = context.requirePlayer()
             val arenaId = args[options.arenaName] ?: run {
                 context.sendMessage {
-                    append(generateCommandInfo("dreamxizum setpos", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2)", "<forPlayer>" to "player/opponent")))
+                    append(generateCommandInfo("dreamxizum setPos", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2)", "<forPlayer>" to "player/opponent")))
                 }
                 return
             }
             val forPlayer = args[options.forPlayer] ?: run {
                 context.sendMessage {
-                    append(generateCommandInfo("dreamxizum setpos", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2)", "<forPlayer>" to "player/opponent")))
+                    append(generateCommandInfo("dreamxizum setPos", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2)", "<forPlayer>" to "player/opponent")))
                 }
                 return
             }
@@ -280,7 +289,7 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         inner class Options : CommandOptions() {
             val arenaId = optionalWord("arenaName") { context, builder ->
                 m.arenas.forEach { payload ->
-                    builder.suggest(payload.data.arenaName.toString())
+                    builder.suggest(payload.data.arenaName)
                 }
             }
         }
@@ -364,15 +373,14 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         inner class Options : CommandOptions() {
             val arenaId = optionalWord("arenaName") { context, builder ->
                 m.arenas.forEach { payload ->
-                    builder.suggest(payload.data.arenaName.toString())
+                    builder.suggest(payload.data.arenaName)
                 }
             }
 
             val mode = optionalWord("mode") { context, builder ->
-                builder.suggest("standard")
-                builder.suggest("pvp_with_soup")
-                builder.suggest("pvp_with_potion")
-                builder.suggest("competitive")
+                arenaModes.forEach {
+                    builder.suggest(it)
+                }
             }
         }
 
@@ -381,13 +389,13 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         override fun execute(context: CommandContext, args: CommandArguments) {
             val arenaId = args[options.arenaId] ?: run {
                 context.sendMessage {
-                    append(generateCommandInfo("dreamxizum setarenamode", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2))", "<mode>" to "standard/pvp_with_soup/pvp_with_potion/competitive/custom")))
+                    append(generateCommandInfo("dreamxizum setArenaMode", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2))", "<mode>" to arenaModes.joinToString("/"))))
                 }
                 return
             }
             val mode = args[options.mode] ?: run {
                 context.sendMessage {
-                    append(generateCommandInfo("dreamxizum setarenamode", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2))", "<mode>" to "standard/pvp_with_soup/pvp_with_potion/competitive/custom")))
+                    append(generateCommandInfo("dreamxizum setArenaMode", mapOf("<arenaName>" to "ID da arena (indexado (0, 1, 2))", "<mode>" to arenaModes.joinToString("/"))))
                 }
                 return
             }
@@ -404,15 +412,15 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
 
             arena.data.mode = when (mode) {
                 "standard" -> XizumBattleMode.STANDARD
-                "pvp_with_soup" -> XizumBattleMode.PVP_WITH_SOUP
-                "pvp_with_potion" -> XizumBattleMode.PVP_WITH_POTION
+                "pvpWithSoup" -> XizumBattleMode.PVP_WITH_SOUP
+                "pvpWithPotion" -> XizumBattleMode.PVP_WITH_POTION
                 "competitive" -> XizumBattleMode.COMPETITIVE
                 else -> {
                     context.sendMessage {
                         append(DreamXizum.prefix())
                         appendSpace()
                         color(NamedTextColor.RED)
-                        append("Modo inválido! Modos válidos: §bstandard§c, §bpvp_with_soup§c, §bpvp_with_potion§c, §bcompetitive")
+                        append("Modo inválido! Modos válidos: §bstandard§c, §bpvpWithSoup§c, §bpvpWithPotion§c, §bcompetitive")
                     }
                     return
                 }
@@ -445,13 +453,13 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         override fun execute(context: CommandContext, args: CommandArguments) {
             val player = args[options.player]?.let { Bukkit.getOfflinePlayer(it) } ?: run {
                 context.sendMessage {
-                    append(generateCommandInfo("dreamxizum setpdc", mapOf("<player>" to "Nome do jogador", "<points>" to "Quantidade de pontos de combate")))
+                    append(generateCommandInfo("dreamxizum setPdc", mapOf("<player>" to "Nome do jogador", "<points>" to "Quantidade de pontos de combate")))
                 }
                 return
             }
             val points = args[options.points] ?: run {
                 context.sendMessage {
-                    append(generateCommandInfo("dreamxizum setpdc", mapOf("<player>" to "Nome do jogador", "<points>" to "Quantidade de pontos de combate")))
+                    append(generateCommandInfo("dreamxizum setPdc", mapOf("<player>" to "Nome do jogador", "<points>" to "Quantidade de pontos de combate")))
                 }
                 return
             }
@@ -461,7 +469,7 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                     append(DreamXizum.prefix())
                     appendSpace()
                     color(NamedTextColor.RED)
-                    append("Não foi possível atualizar os pontos de combate de ${player.name}!")
+                    append("Não foi possível atualizar os pontos de combate de §b${player.name}§c!")
                 }
 
                 return
@@ -471,7 +479,7 @@ class DreamXizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                 append(DreamXizum.prefix())
                 appendSpace()
                 color(NamedTextColor.GREEN)
-                append("Pontos de combate de ${player.name} atualizados com sucesso! Agora ele tem ${result.rating} pontos de combate!")
+                append("Pontos de combate de §b${player.name} §aatualizados com sucesso! Agora ele tem §b${result.rating} §apontos de combate!")
             }
         }
     }
