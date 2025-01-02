@@ -6,6 +6,7 @@ import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamxizum.DreamXizum
+import net.perfectdreams.dreamxizum.tables.XizumMatchesResults
 import net.perfectdreams.dreamxizum.tables.dao.XizumProfile
 import net.perfectdreams.dreamxizum.utils.XizumBattleMode
 import net.perfectdreams.dreamxizum.utils.XizumRank
@@ -16,6 +17,7 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
 class XizumRequestHolder(
@@ -64,12 +66,22 @@ class XizumRequestHolder(
             val holder = XizumRequestHolder(m, custom, target)
             val inv = Bukkit.createInventory(holder, 54, holder.title)
 
-            val playerProfile = transaction(Databases.databaseNetwork) {
-                XizumProfile.findOrCreate(player.uniqueId)
+            val result = transaction(Databases.databaseNetwork) {
+                val profile = XizumProfile.findOrCreate(player.uniqueId)
+
+                val wins = XizumMatchesResults.selectAll().where {
+                    XizumMatchesResults.winner eq player.uniqueId
+                }.count()
+
+                val losses = XizumMatchesResults.selectAll().where {
+                    XizumMatchesResults.loser eq player.uniqueId
+                }.count()
+
+                return@transaction XizumQueryResult(profile, wins, losses)
             }
 
             inv.setItem(SWITCH_DROP_HEAD, ItemStack(Material.PLAYER_HEAD).meta<ItemMeta> {
-                if (playerProfile.canDropHead) {
+                if (result.playerProfile.canDropHead) {
                     displayName(textComponent {
                         color(NamedTextColor.GREEN)
                         append("Dropar cabeça")
@@ -182,7 +194,7 @@ class XizumRequestHolder(
                         }
                         lore = listOf(
                             "§7Clique para entrar nessa fila!",
-                            "§7Você tem §b${playerProfile.rating} §7de RP (Rating Points)"
+                            "§7Você tem §b${result.playerProfile.rating} §7de RP (Rating Points)"
                         )
                     }
                 })
@@ -193,7 +205,7 @@ class XizumRequestHolder(
                             append("§6Vitórias")
                         })
                         lore = listOf(
-                            "§7Você tem §b${playerProfile.wins} §7vitórias!"
+                            "§7Você tem §b${result.wins} §7vitórias!"
                         )
                     }
                 })
@@ -204,15 +216,15 @@ class XizumRequestHolder(
                             append("§6Derrotas")
                         })
                         lore = listOf(
-                            "§7Você tem §b${playerProfile.losses} §7derrotas!"
+                            "§7Você tem §b${result.losses} §7derrotas!"
                         )
                     }
                 })
 
-                val kdr = if (playerProfile.losses == 0) {
-                    playerProfile.wins
+                val kdr = if (result.losses == 0L) {
+                    result.wins
                 } else {
-                    playerProfile.wins / playerProfile.losses
+                    result.wins / result.losses
                 }
 
                 inv.setItem(KDR, ItemStack(Material.YELLOW_CONCRETE).apply {
@@ -229,10 +241,10 @@ class XizumRequestHolder(
                 inv.setItem(RATING, ItemStack(Material.BLUE_CONCRETE).apply {
                     itemMeta = itemMeta.apply {
                         displayName(textComponent {
-                            append("§6Pontos de Combate (${XizumRank.getTextByRating(playerProfile.rating)}§6)")
+                            append("§6Pontos de Combate (${XizumRank.getTextByRating(result.playerProfile.rating)}§6)")
                         })
                         lore = listOf(
-                            "§7Você tem §b${playerProfile.rating} §7de PdC (Pontos de Combate)!"
+                            "§7Você tem §b${result.playerProfile.rating} §7de PdC (Pontos de Combate)!"
                         )
                     }
                 })
@@ -247,4 +259,10 @@ class XizumRequestHolder(
     override fun getInventory(): Inventory {
         TODO("Not yet implemented")
     }
+
+    data class XizumQueryResult(
+        val playerProfile: XizumProfile,
+        val wins: Long,
+        val losses: Long
+    )
 }

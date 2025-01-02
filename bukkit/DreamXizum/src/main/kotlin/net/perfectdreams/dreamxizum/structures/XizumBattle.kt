@@ -16,6 +16,7 @@ import net.perfectdreams.dreamxizum.listeners.BattleListener
 import net.perfectdreams.dreamxizum.modes.AbstractXizumBattleMode
 import net.perfectdreams.dreamxizum.modes.vanilla.CompetitiveXizumMode
 import net.perfectdreams.dreamxizum.modes.vanilla.StandardXizumMode
+import net.perfectdreams.dreamxizum.tables.XizumMatchesResults
 import net.perfectdreams.dreamxizum.tables.dao.XizumProfile
 import net.perfectdreams.dreamxizum.utils.XizumBattleMode
 import net.perfectdreams.dreamxizum.utils.XizumBattleResult
@@ -28,7 +29,9 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.SkullMeta
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.Instant
 import kotlin.math.pow
 
 class XizumBattle(
@@ -46,8 +49,8 @@ class XizumBattle(
     var playerPreviousInventory = arrayOf<ItemStack?>()
     var opponentPreviousInventory = arrayOf<ItemStack?>()
 
-    val playerPosition = arena.playerPos ?: error("player position is null on arena '${arena.data.id}'!")
-    val opponentPosition = arena.opponentPos ?: error("opponent position is null on arena '${arena.data.id}'!")
+    val playerPosition = arena.playerPos ?: error("player position is null on arena '${arena.data.arenaName}'!")
+    val opponentPosition = arena.opponentPos ?: error("opponent position is null on arena '${arena.data.arenaName}'!")
 
     fun start() {
         if (mode is Listener) {
@@ -56,7 +59,7 @@ class XizumBattle(
 
         val asPair = Pair(player, opponent)
 
-        m.arenas.firstOrNull { it.data.id == arena.data.id }?.let {
+        m.arenas.firstOrNull { it.data.arenaName == arena.data.arenaName }?.let {
             it.inUse = true
         }
 
@@ -161,7 +164,7 @@ class XizumBattle(
 
         val winner = if (loser == player) opponent else player
 
-        m.arenas.first { it.data.id == arena.data.id }.let {
+        m.arenas.first { it.data.arenaName == arena.data.arenaName }.let {
             it.inUse = false
         }
 
@@ -218,8 +221,13 @@ class XizumBattle(
 
                     loserProfile = loserDb
 
-                    winnerDb.wins++
-                    loserDb.losses++
+                    XizumMatchesResults.insert {
+                        it[XizumMatchesResults.arenaName] = arena.data.arenaName
+                        it[XizumMatchesResults.arenaMode] = arena.data.mode!!.name // Should NEVER be null!
+                        it[XizumMatchesResults.winner] = winner.uniqueId
+                        it[XizumMatchesResults.loser] = loser.uniqueId
+                        it[XizumMatchesResults.finishedAt] = Instant.now()
+                    }
 
                     if (mode is CompetitiveXizumMode && result != XizumBattleResult.DRAW) {
                         val k = when {
@@ -367,7 +375,7 @@ class XizumBattle(
         started = false
         ended = true
 
-        m.arenas.first { it.data.id == arena.data.id }.let {
+        m.arenas.first { it.data.arenaName == arena.data.arenaName }.let {
             it.inUse = false
         }
 

@@ -24,6 +24,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
     override fun declaration() = sparklyCommand(listOf("xizum", "x1")) {
+        permission = "dreamxizum.join"
         executor = XizumCommandExecutor()
 
         subcommand(listOf("camarote", "spectate")) {
@@ -49,10 +50,6 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         subcommand(listOf("ranking", "top")) {
             executor = XizumRankingCommandExecutor()
         }
-
-        //subcommand(listOf("desafiar", "challenge")) {
-        //            executor
-        //        }
     }
 
     inner class XizumCommandExecutor : SparklyCommandExecutor() {

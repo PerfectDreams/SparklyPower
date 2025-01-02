@@ -13,8 +13,6 @@ class XizumProfile(id: EntityID<UUID>) : UUIDEntity(id) {
         }
     }
 
-    var wins by XizumProfiles.wins
-    var losses by XizumProfiles.losses
     var rating by XizumProfiles.rating
     var canDropHead by XizumProfiles.canDropHead
 }

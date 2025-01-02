@@ -13,7 +13,7 @@ data class XizumPluginConfig(
 ) {
     @Serializable
     data class XizumArenaConfig(
-        val id: Int,
+        val arenaName: String,
         val worldName: String,
         var playerPos: Location? = null,
         var opponentPos: Location? = null,

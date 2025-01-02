@@ -18,10 +18,10 @@ import net.perfectdreams.dreamxizum.structures.XizumArena
 import net.perfectdreams.dreamxizum.structures.XizumBattle
 import net.perfectdreams.dreamxizum.structures.XizumBattleRequest
 import net.perfectdreams.dreamxizum.tables.XizumProfiles
+import net.perfectdreams.dreamxizum.tables.XizumMatchesResults
 import net.perfectdreams.dreamxizum.tables.dao.XizumProfile
 import net.perfectdreams.dreamxizum.utils.*
 import net.perfectdreams.dreamxizum.utils.config.XizumPluginConfig
-import org.bukkit.event.Listener
 import org.bukkit.persistence.PersistentDataType
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -77,7 +77,10 @@ class DreamXizum : KotlinPlugin() {
         startQueueCheckTask()
 
         transaction(Databases.databaseNetwork) {
-            SchemaUtils.createMissingTablesAndColumns(XizumProfiles)
+            SchemaUtils.createMissingTablesAndColumns(
+                XizumProfiles,
+                XizumMatchesResults
+            )
         }
     }
 
@@ -137,16 +140,16 @@ class DreamXizum : KotlinPlugin() {
         updateConfigFile()
     }
 
-    fun deleteArena(id: Int) {
-        val arena = arenas.firstOrNull { it.data.id == id } ?: return
+    fun deleteArena(arenaName: String) {
+        val arena = arenas.firstOrNull { it.data.arenaName == arenaName } ?: return
 
         arenas.remove(arena)
 
         updateConfigFile()
     }
 
-    fun updateArena(id: Int, data: XizumPluginConfig.XizumArenaConfig) {
-        val arena = arenas.firstOrNull { it.data.id == id } ?: return
+    fun updateArena(arenaName: String, data: XizumPluginConfig.XizumArenaConfig) {
+        val arena = arenas.firstOrNull { it.data.arenaName == arenaName } ?: return
 
         arena.data = data
 
@@ -181,7 +184,7 @@ class DreamXizum : KotlinPlugin() {
         updateRuntimeArenas()
     }
 
-    fun getArena(id: Int) = arenas.firstOrNull { it.data.id == id }
+    fun getArena(arenaName: String) = arenas.firstOrNull { it.data.arenaName == arenaName }
 
     fun notifyNoArena(playerRequest: XizumBattleRequest, otherRequest: XizumBattleRequest) {
         listOf(playerRequest.player, otherRequest.player).forEach { player ->
@@ -254,7 +257,7 @@ class DreamXizum : KotlinPlugin() {
                         player.sendMessage(textComponent {
                             append(prefix())
                             appendSpace()
-                            append("A arena §b${arena.data.id} §cnão possui um modo de jogo definido! Reporte à staff do servidor!") {
+                            append("A arena §b${arena.data.arenaName} §cnão possui um modo de jogo definido! Reporte à staff do servidor!") {
                                 color(NamedTextColor.RED)
                             }
                         })
