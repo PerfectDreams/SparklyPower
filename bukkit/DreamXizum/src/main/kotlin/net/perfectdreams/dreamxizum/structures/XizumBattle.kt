@@ -7,6 +7,7 @@ import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamcore.utils.extensions.removeAllPotionEffects
+import net.perfectdreams.dreamcore.utils.extensions.teleportToServerSpawnWithEffects
 import net.perfectdreams.dreamcore.utils.extensions.teleportToServerSpawnWithEffectsAwait
 import net.perfectdreams.dreamcore.utils.registerEvents
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
@@ -93,10 +94,10 @@ class XizumBattle(
 
         mode.setupInventory(asPair)
 
-        updatePlayersStatus(false)
+        updatePlayerStatus(player, false)
+        updatePlayerStatus(opponent, false)
 
         // countdown to start the battle
-
         m.launchMainThread {
             countdown = true
 
@@ -127,7 +128,8 @@ class XizumBattle(
                 opponent.hidePlayer(m, it)
             }
 
-            updatePlayersStatus(true)
+            updatePlayerStatus(player, true)
+            updatePlayerStatus(opponent, true)
 
             listOf(player, opponent).forEach {
                 it.sendTitle("§a§lComeçou!", "§7Que vença o melhor!", 10, 80, 10)
@@ -315,12 +317,9 @@ class XizumBattle(
 
                 }
 
-                m.launchMainThread {
-                    // We need to be in a separate thread because...
-                    // 1. this is async
-                    // 2. PlayerDeathEvent runs on a server level ticking thread and that causes issues with parallel world ticking (and Folia)
-                    loser.teleportToServerSpawnWithEffectsAwait()
-                }
+                // If the player is dead, we can't teleport it somewhere else
+                // The player will respawn anyway
+                updateLoserDeathStatus(loser)
 
                 delayTicks(100)
 
@@ -328,8 +327,7 @@ class XizumBattle(
 
                 m.activeBattles.remove(this@XizumBattle)
 
-                updatePlayersStatus(true)
-
+                updatePlayerStatus(winner, true)
                 winner.teleportToServerSpawnWithEffectsAwait()
             }
         }
@@ -349,25 +347,28 @@ class XizumBattle(
             .withFlicker()
             .withTrail()
             .build())
-
-
     }
 
-    private fun updatePlayersStatus(reset: Boolean) {
-        listOf(player, opponent).forEach {
-            it.gameMode = GameMode.SURVIVAL
-            it.foodLevel = 20
-            it.health = it.maxHealth
-            it.allowFlight = false
+    private fun updatePlayerStatus(player: Player, reset: Boolean) {
+        player.gameMode = GameMode.SURVIVAL
+        player.foodLevel = 20
+        player.health = player.maxHealth
+        player.allowFlight = false
 
-            if (reset) {
-                it.walkSpeed = 0.2f
-            } else {
-                it.walkSpeed = 0f
-                it.removeAllPotionEffects()
-                it.addPotionEffect(PotionEffect(PotionEffectType.JUMP_BOOST, 100, -5))
-            }
+        if (reset) {
+            player.walkSpeed = 0.2f
+        } else {
+            player.walkSpeed = 0f
+            player.removeAllPotionEffects()
+            player.addPotionEffect(PotionEffect(PotionEffectType.JUMP_BOOST, 100, -5))
         }
+    }
+
+    private fun updateLoserDeathStatus(player: Player) {
+        // We CANNOT set the player's health because, if we set it, the player won't be able to respawn because they are not "dead"
+        player.gameMode = GameMode.SURVIVAL
+        player.allowFlight = false
+        player.walkSpeed = 0.2f // Yes, we need to reset the walk speed
     }
 
     fun draw() {
@@ -395,13 +396,8 @@ class XizumBattle(
             it.remove()
         }
 
-        m.launchAsyncThread {
-            opponent.teleportToServerSpawnWithEffectsAwait()
-
-            onMainThread {
-                player.teleportToServerSpawnWithEffectsAwait()
-            }
-        }
+        player.teleportToServerSpawnWithEffects()
+        opponent.teleportToServerSpawnWithEffects()
 
         // reset the inventory
         if (mode !is StandardXizumMode) {
@@ -416,7 +412,8 @@ class XizumBattle(
             opponentPreviousInventory = arrayOf()
         }
 
-        updatePlayersStatus(true)
+        updatePlayerStatus(player, true)
+        updatePlayerStatus(opponent, true)
 
         m.activeBattles.remove(this)
     }
