@@ -22,6 +22,8 @@ import net.perfectdreams.dreamemotes.tables.CachedGestureSkinHeads
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
@@ -137,5 +139,17 @@ class DreamEmotes : KotlinPlugin(), Listener {
 		if (e.displaced) {
 			gesturesManager.stopGesturePlayback(e.player)
 		}
+	}
+
+	@EventHandler
+	fun onDamage(e: EntityDamageEvent) {
+		val player = e.entity as? Player ?: return
+
+		gesturesManager.stopGesturePlayback(player)
+	}
+
+	@EventHandler
+	fun onDeath(e: PlayerDeathEvent) {
+		gesturesManager.stopGesturePlayback(e.player)
 	}
 }
