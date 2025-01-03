@@ -17,9 +17,12 @@ import net.perfectdreams.dreamcore.utils.set
 import net.perfectdreams.dreamxizum.DreamXizum
 import net.perfectdreams.dreamxizum.structures.XizumBattle
 import net.perfectdreams.dreamxizum.structures.XizumRequestHolder
+import net.perfectdreams.dreamxizum.tables.XizumProfiles
 import net.perfectdreams.dreamxizum.tables.dao.XizumProfile
 import net.perfectdreams.dreamxizum.utils.XizumRank
 import org.bukkit.Bukkit
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
 class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
@@ -307,10 +310,9 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
         override fun execute(context: CommandContext, args: CommandArguments) {
             m.launchAsyncThread {
                 val profiles = transaction(Databases.databaseNetwork) {
-                    XizumProfile.all()
+                    XizumProfiles.selectAll()
+                        .orderBy(XizumProfiles.rating, SortOrder.DESC)
                         .limit(10)
-                        .sortedByDescending { it.rating }
-                        .toList()
                 }
 
                 onMainThread {
@@ -320,9 +322,10 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                         appendNewline()
 
                         for ((index, profile) in profiles.withIndex()) {
-                            val innerPlayer = Bukkit.getOfflinePlayer(profile.id.value)
+                            val innerPlayer = Bukkit.getOfflinePlayer(profile[XizumProfiles.id].value)
+                            val rating = profile[XizumProfiles.rating]
 
-                            append("§7${index + 1}º §8- §b${innerPlayer.name} §8- §6${XizumRank.getTextByRating(profile.rating)} §8- §6${profile.rating} PdC")
+                            append("§7${index + 1}º §8- §b${innerPlayer.name} §8- §6${XizumRank.getTextByRating(rating)} §8- §6${rating} PdC")
                             appendNewline()
                         }
 
