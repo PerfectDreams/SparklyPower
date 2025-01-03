@@ -313,6 +313,7 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
                     XizumProfiles.selectAll()
                         .orderBy(XizumProfiles.rating, SortOrder.DESC)
                         .limit(10)
+                        .toList()
                 }
 
                 onMainThread {
