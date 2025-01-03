@@ -114,7 +114,7 @@ class XizumBattle(
 
             for (idx in 5 downTo 1) {
                 listOf(player, opponent).forEach {
-                    it.sendTitle("§c$idx", "§7Prepare-se para a batalha!", 10, 80, 10)
+                    it.sendTitle("§c$idx", "§7Prepare-se para a batalha!", 10, 60, 10)
 
                     it.sendActionBar(textComponent {
                         color(NamedTextColor.GREEN)
@@ -143,7 +143,7 @@ class XizumBattle(
             updatePlayerStatus(opponent, true)
 
             listOf(player, opponent).forEach {
-                it.sendTitle("§a§lComeçou!", "§7Que vença o melhor!", 10, 80, 10)
+                it.sendTitle("§a§lComeçou!", "§7Que vença o melhor!", 10, 20, 10)
             }
 
             while (started) {
