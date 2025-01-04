@@ -76,6 +76,7 @@ class ColorizeShopSignsListener(val m: DreamChestShopStuff) : Listener {
     fun onPreShopCreation(event: PreShopCreationEvent) {
         val isAdminShop = ChestShopSign.isAdminShop(ChatColor.stripColor(event.getSignLine(0)))
         if (isAdminShop) {
+            event.sign.color = DyeColor.BLUE
             event.signLines = buildColoredSign(
                 event.signLines.toList(),
                 true,
@@ -92,6 +93,7 @@ class ColorizeShopSignsListener(val m: DreamChestShopStuff) : Listener {
         val numTradedItemsInChest = InventoryUtil.getAmount(itemTradedByShop, chestShopInventory)
         val hasSpaceInChest = InventoryUtil.fits(itemTradedByShop, chestShopInventory)
 
+        event.sign.color = DyeColor.BLUE
         event.signLines = buildColoredSign(
             event.signLines.toList(),
             numTradedItemsInChest != 0,
@@ -99,7 +101,6 @@ class ColorizeShopSignsListener(val m: DreamChestShopStuff) : Listener {
             event.sign.persistentDataContainer.has(RAINBOW_NAME_SHOP_SIGN_KEY, PersistentDataType.BYTE),
             event.sign.color
         ).toTypedArray()
-        event.sign.color = DyeColor.BLUE
         event.sign.update()
         return
     }
