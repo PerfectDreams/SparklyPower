@@ -93,8 +93,6 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
             }
 
             if (player.teleport(loc)) {
-                player.persistentDataContainer.set(DreamXizum.IS_IN_CAMAROTE, true)
-
                 context.sendMessage {
                     append(DreamXizum.prefix())
                     appendSpace()
@@ -290,18 +288,31 @@ class XizumCommand(val m: DreamXizum) : SparklyCommandDeclarationWrapper {
 
             m.queue.remove(request)
 
-            request.opponent!!.sendMessage(textComponent {
-                append(DreamXizum.prefix())
-                appendSpace()
-                color(NamedTextColor.RED)
-                append("O convite de §b${request.player.displayName} §cpara você foi expirado!")
-            })
+            if (request.opponent != null) {
+                request.opponent.sendMessage(textComponent {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.RED)
+                    append("O convite de ")
+                    append(request.player.displayName())
+                    append(" §cpara você foi expirado!")
+                })
 
-            context.sendMessage {
-                append(DreamXizum.prefix())
-                appendSpace()
-                color(NamedTextColor.GREEN)
-                append("Você cancelou o convite de batalha para §b${request.opponent.displayName}§a!")
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.GREEN)
+                    append("Você cancelou o convite de batalha para ")
+                    append(request.opponent.displayName())
+                    append("!")
+                }
+            } else {
+                context.sendMessage {
+                    append(DreamXizum.prefix())
+                    appendSpace()
+                    color(NamedTextColor.GREEN)
+                    append("Você saiu da fila de espera!")
+                }
             }
         }
     }

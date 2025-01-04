@@ -1,13 +1,18 @@
 package net.perfectdreams.dreamxizum.listeners
 
 import com.destroystokyo.paper.event.player.PlayerJumpEvent
+import com.sk89q.worldedit.bukkit.BukkitAdapter
+import com.sk89q.worldguard.WorldGuard
 import net.perfectdreams.dreamcore.DreamCore
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
+import net.perfectdreams.dreamcore.utils.extensions.isWithinRegion
+import net.perfectdreams.dreamcore.utils.extensions.worldGuardRegions
 import net.perfectdreams.dreamcore.utils.get
 import net.perfectdreams.dreamcore.utils.remove
 import net.perfectdreams.dreamxizum.DreamXizum
 import net.perfectdreams.dreamxizum.utils.XizumBattleResult
+import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.craftbukkit.entity.CraftArrow
 import org.bukkit.craftbukkit.entity.CraftEnderPearl
@@ -35,6 +40,8 @@ class BattleListener(val m: DreamXizum) : Listener {
     companion object {
         // <lastused> to <player>
         var enderPearlCooldown = hashMapOf<UUID, Long>()
+
+        val wg = WorldGuard.getInstance()
     }
 
     @EventHandler
@@ -62,11 +69,22 @@ class BattleListener(val m: DreamXizum) : Listener {
 
     @EventHandler
     fun onPlayerDrop(e: PlayerDropItemEvent) {
-        if (e.player.persistentDataContainer.get(DreamXizum.IS_IN_CAMAROTE) == true) {
+        // check if the player is in camarote region on world guard
+        // let's deprecate the key usage and use the world guard region instead
+        val player = e.player
+
+        if (player.location.isWithinRegion("camarote")) {
+            if (player.location.worldGuardRegions.any { it.id.contains("arenaxizum") })
+                return
+
             e.isCancelled = true
-            e.player.sendMessage(textComponent {
+
+            player.sendMessage(textComponent {
+                append(DreamXizum.prefix())
+                appendSpace()
                 append("§cVocê não pode dropar itens enquanto estiver no camarote!")
             })
+
             return
         }
     }

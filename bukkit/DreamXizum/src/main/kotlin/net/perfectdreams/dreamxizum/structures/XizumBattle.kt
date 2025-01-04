@@ -72,13 +72,13 @@ class XizumBattle(
         announceToAllPlayersInXizumWorld(textComponent {
             append(DreamXizum.prefix())
             appendSpace()
-            append("A batalha entre ")
+            append("§6A batalha entre ")
             append(player.displayName())
-            append(" e ")
+            append(" §6e ")
             append(opponent.displayName())
-            append(" está prestes a começar! Modo: ")
+            append(" §6está prestes a começar! Modo: ")
             append(XizumBattleMode.prettify(mode.enum) ?: "Desconhecido") {
-                color(NamedTextColor.GOLD)
+                color(NamedTextColor.GREEN)
             }
         })
 
@@ -114,7 +114,7 @@ class XizumBattle(
 
             for (idx in 5 downTo 1) {
                 listOf(player, opponent).forEach {
-                    it.sendTitle("§c$idx", "§7Prepare-se para a batalha!", 10, 60, 10)
+                    it.sendTitle("§c$idx", "§7Prepare-se para a batalha!", 10, 20, 10)
 
                     it.sendActionBar(textComponent {
                         color(NamedTextColor.GREEN)
