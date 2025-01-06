@@ -12,6 +12,7 @@ import net.perfectdreams.dreamcore.utils.preferences.broadcastMessage
 import net.perfectdreams.dreamcorreios.DreamCorreios
 import net.perfectdreams.dreammini.commands.*
 import net.perfectdreams.dreammini.utils.*
+import net.perfectdreams.dreamvanish.DreamVanishAPI
 import net.sparklypower.sparklypaper.event.inventory.CraftItemRecipeEvent
 import org.bukkit.*
 import org.bukkit.command.CommandSender
@@ -327,7 +328,7 @@ class DreamMini : KotlinPlugin(), Listener {
 
 			val schedule = scheduler().schedule(this) {
 				waitFor(20 * 7) // Esperar sete segundos
-				val joinedPlayers = joined.filter { it.isOnline }
+				val joinedPlayers = joined.filter { it.isOnline && !DreamVanishAPI.isQueroTrabalhar(it) }
 
 				if (joinedPlayers.isEmpty())
 					return@schedule

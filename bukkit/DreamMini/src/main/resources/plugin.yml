@@ -1,5 +1,5 @@
 name: DreamMini
 main: net.perfectdreams.dreammini.DreamMini
 version: 1.0.0
-depend: ["DreamCore"]
+depend: ["DreamCore", "DreamVanish", "DreamChat", "DreamCorreios"]
 api-version: 1.13
