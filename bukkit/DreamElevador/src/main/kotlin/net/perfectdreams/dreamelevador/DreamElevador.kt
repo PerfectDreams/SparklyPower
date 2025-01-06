@@ -1,7 +1,5 @@
 package net.perfectdreams.dreamelevador
 
-import com.okkero.skedule.BukkitSchedulerController
-import com.okkero.skedule.CoroutineTask
 import com.okkero.skedule.schedule
 import net.perfectdreams.dreamcore.utils.KotlinPlugin
 import net.perfectdreams.dreamcore.utils.registerEvents
@@ -18,15 +16,9 @@ import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.block.SignChangeEvent
 import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.event.player.PlayerMoveEvent
-import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.inventory.ItemStack
-import java.util.*
 
 class DreamElevador : KotlinPlugin(), Listener {
-    private val TELEPORT_DELAY = 3L
-    private val teleportJobs = WeakHashMap<Player, BukkitSchedulerController>()
-
     override fun softEnable() {
         super.softEnable()
         registerEvents(this)
@@ -34,11 +26,6 @@ class DreamElevador : KotlinPlugin(), Listener {
 
     override fun softDisable() {
         super.softDisable()
-    }
-
-    @EventHandler
-    fun onQuit(e: PlayerQuitEvent) {
-        teleportJobs.remove(e.player)
     }
 
     @EventHandler
@@ -115,33 +102,24 @@ class DreamElevador : KotlinPlugin(), Listener {
                 continue
             }
 
-            // Workaround, Minecraft has a bug that when you left click a sign and gets teleported, the client
-            // reverts the position
-            schedule {
-                teleportJobs[player] = this
-                waitFor(TELEPORT_DELAY)
-                if (this == teleportJobs[player]) {
-                    player.teleport(getTeleportLocation(player, _sign))
+            player.teleport(getTeleportLocation(player, _sign))
 
-                    val fancyName = idx.convertToNumeroNomeAdjetivo()
-                    player.sendTitle(
-                        "",
-                        "§7${fancyName ?: "Térreo"}${if (fancyName != null) " andar" else ""}",
-                        8,
-                        35,
-                        8
-                    )
-                    player.world.spawnParticle(
-                        Particle.HAPPY_VILLAGER,
-                        player.location.add(0.0, 0.5, 0.0),
-                        10,
-                        0.5,
-                        0.5,
-                        0.5
-                    )
-                    teleportJobs.remove(player)
-                }
-            }
+            val fancyName = idx.convertToNumeroNomeAdjetivo()
+            player.sendTitle(
+                "",
+                "§7${fancyName ?: "Térreo"}${if (fancyName != null) " andar" else ""}",
+                8,
+                35,
+                8
+            )
+            player.world.spawnParticle(
+                Particle.HAPPY_VILLAGER,
+                player.location.add(0.0, 0.5, 0.0),
+                10,
+                0.5,
+                0.5,
+                0.5
+            )
             return
         }
         player.sendTitle("§f", "§cVocê já está no último andar!", 8, 35, 8)
@@ -188,31 +166,24 @@ class DreamElevador : KotlinPlugin(), Listener {
                 idx++
             }
 
-            schedule {
-                teleportJobs[player] = this
-                waitFor(TELEPORT_DELAY)
-                if (this == teleportJobs[player]) {
-                    player.teleport(getTeleportLocation(player, _sign))
+            player.teleport(getTeleportLocation(player, _sign))
 
-                    val fancyName = idx.convertToNumeroNomeAdjetivo()
-                    player.sendTitle(
-                        "",
-                        "§7${fancyName ?: "Térreo"}${if (fancyName != null) " andar" else ""}",
-                        8,
-                        35,
-                        8
-                    )
-                    player.world.spawnParticle(
-                        Particle.HAPPY_VILLAGER,
-                        player.location.add(0.0, 0.5, 0.0),
-                        10,
-                        0.5,
-                        0.5,
-                        0.5
-                    )
-                    teleportJobs.remove(player)
-                }
-            }
+            val fancyName = idx.convertToNumeroNomeAdjetivo()
+            player.sendTitle(
+                "",
+                "§7${fancyName ?: "Térreo"}${if (fancyName != null) " andar" else ""}",
+                8,
+                35,
+                8
+            )
+            player.world.spawnParticle(
+                Particle.HAPPY_VILLAGER,
+                player.location.add(0.0, 0.5, 0.0),
+                10,
+                0.5,
+                0.5,
+                0.5
+            )
             return
         }
         player.sendTitle("§f", "§cVocê já está no primeiro andar!", 8, 35, 8)
@@ -223,7 +194,7 @@ class DreamElevador : KotlinPlugin(), Listener {
         val location = sign.location.add(0.5, -1.0, 0.5)
         // location.x = player.location.x
         // location.z = player.location.z
-        location.yaw = player.location.yaw + 0.0001f
+        location.yaw = player.location.yaw
         location.pitch = player.location.pitch
         return location
     }
