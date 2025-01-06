@@ -1,0 +1,3 @@
+package net.perfectdreams.dreamreflections.tables
+
+object ViolationSessions

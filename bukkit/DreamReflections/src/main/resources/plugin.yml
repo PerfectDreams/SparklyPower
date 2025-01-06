@@ -1,0 +1,5 @@
+name: DreamReflections
+main: net.perfectdreams.dreamreflections.DreamReflections
+version: 1.0.0
+depend: ["DreamCore", "DreamBedrockIntegrations"]
+api-version: 1.13

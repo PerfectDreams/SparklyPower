@@ -104,6 +104,7 @@ include(":bukkit:DreamInventorySnapshots")
 include(":bukkit:DreamBlockParty")
 include(":bukkit:DreamHolograms")
 include(":bukkit:DreamEmotes")
+include(":bukkit:DreamReflections")
 
 // ===[ VELOCITY ]===
 include(":velocity:SparklyVelocityCore")
