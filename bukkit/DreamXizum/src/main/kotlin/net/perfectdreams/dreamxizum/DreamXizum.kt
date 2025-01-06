@@ -51,6 +51,8 @@ class DreamXizum : KotlinPlugin() {
         private val json = Json {
             ignoreUnknownKeys = true
         }
+
+        private val MAX_TIME_IN_QUEUE = 60 * 1000
     }
 
     private val configFile = File(dataFolder, "config.json")
@@ -210,8 +212,8 @@ class DreamXizum : KotlinPlugin() {
                             color(NamedTextColor.GOLD)
                         }
                         when (duration) {
-                            in 0..60 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.GREEN) }
-                            in 61..120 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.YELLOW) }
+                            in 0..30 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.GREEN) }
+                            in 31..60 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.YELLOW) }
                             else -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.RED) }
                         }
                     })
@@ -288,7 +290,6 @@ class DreamXizum : KotlinPlugin() {
                 // If the user doesn't have this rating difference, the player will need to wait 120 seconds to be matched with anyone in the queue
                 // If the player with more rating loses... well, that's their fault for being too cocky
                 val ratingDifferenceThreshold = 150
-                val maxWaitTime = 120 * 1000
                 val availableRequests = queue.filter { it.mode.enum == mode && it.opponent == null }
 
                 for (playerRequest in availableRequests) {
@@ -302,7 +303,7 @@ class DreamXizum : KotlinPlugin() {
                         }
 
                         val timeInQueue = System.currentTimeMillis() - playerRequest.time
-                        val relaxedThreshold = if (timeInQueue > maxWaitTime) Int.MAX_VALUE else ratingDifferenceThreshold
+                        val relaxedThreshold = if (timeInQueue > MAX_TIME_IN_QUEUE) Int.MAX_VALUE else ratingDifferenceThreshold
 
                         it != playerRequest && abs(otherPlayer.rating - player.rating) <= relaxedThreshold
                     }

@@ -193,16 +193,19 @@ class XizumBattle(
 
             XizumBattleResult.KILLED -> textComponent {
                 append(winner.displayName())
+                append(" §7(§c❤${winner.health / 2}§7) ")
                 append(" §atriunfou sobre ")
                 append(loser.displayName())
                 append("§a! A batalha foi encerrada!")
             }
+
             XizumBattleResult.DISCONNECTION -> textComponent {
                 append(loser.displayName())
                 append(" §adesconectou-se da batalha! ")
                 append(winner.displayName())
                 append(" §aé o vencedor!")
             }
+
             XizumBattleResult.COULD_NOT_TELEPORT -> textComponent {
                 append("§cNão foi possível teleportar ")
                 append(loser.displayName())
@@ -210,12 +213,14 @@ class XizumBattle(
                 append(winner.displayName())
                 append(" §aé o vencedor!")
             }
+
             XizumBattleResult.RAN -> textComponent {
                 append(loser.displayName())
                 append(" §bfugiu da batalha! ")
                 append(winner.displayName())
                 append(" §aé o vencedor!")
             }
+            
             XizumBattleResult.TIMEOUT -> textComponent {
                 append("§cA batalha entre ")
                 append(player.displayName())

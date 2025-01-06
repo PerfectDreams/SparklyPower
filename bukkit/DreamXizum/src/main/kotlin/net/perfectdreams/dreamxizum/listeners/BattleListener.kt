@@ -74,9 +74,6 @@ class BattleListener(val m: DreamXizum) : Listener {
         val player = e.player
 
         if (player.location.isWithinRegion("camarote")) {
-            if (player.location.worldGuardRegions.any { it.id.contains("arenaxizum") })
-                return
-
             e.isCancelled = true
 
             player.sendMessage(textComponent {
