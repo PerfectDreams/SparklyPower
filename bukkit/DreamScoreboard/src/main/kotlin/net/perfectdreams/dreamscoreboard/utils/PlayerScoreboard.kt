@@ -1,5 +1,6 @@
 package net.perfectdreams.dreamscoreboard.utils
 
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.perfectdreams.dreambedrockintegrations.utils.isBedrockClient
 import net.perfectdreams.dreamcore.DreamCore
 import net.perfectdreams.dreamcore.utils.*
@@ -79,8 +80,9 @@ class PlayerScoreboard(val m: DreamScoreboard, val player: Player, val phoenix: 
 			else -> player.world.name
 		}
 
-		player.setPlayerListHeaderFooter(
-			"""§4§k||§c§k|§f§k|§b§k|§3§k|| §6»»§e»»§f»» §8§l[ §4§lSparkly§b§lPower §8§l] §f««§e««§6«« §4§k||§c§k|§f§k|§b§k|§3§k||
+		player.sendPlayerListHeaderAndFooter(
+			LegacyComponentSerializer.legacySection().deserialize(
+				"""§4§k||§c§k|§f§k|§b§k|§3§k|| §6»»§e»»§f»» §8§l[ §4§lSparkly§b§lPower §8§l] §f««§e««§6«« §4§k||§c§k|§f§k|§b§k|§3§k||
 	|§6Modéstia à parte... esse servidor é incrível!
 	|§x§f§6§1§7§0§0§om§x§e§8§1§f§0§b§oc§x§d§b§2§7§1§6§o.§x§c§d§2§f§2§1§os§x§b§f§3§7§2§c§op§x§b§2§4§0§3§8§oa§x§a§4§4§8§4§3§or§x§9§6§5§0§4§e§ok§x§8§9§5§8§5§9§ol§x§7§b§6§0§6§4§oy§x§6§d§6§8§6§f§op§x§6§0§7§0§7§a§oo§x§5§2§7§8§8§5§ow§x§4§4§8§0§9§0§oe§x§3§7§8§9§9§c§or§x§2§9§9§1§a§7§o.§x§1§b§9§9§b§2§on§x§0§e§a§1§b§d§oe§x§0§0§a§9§c§8§ot
     |§3§m✦-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-✦
@@ -89,8 +91,10 @@ class PlayerScoreboard(val m: DreamScoreboard, val player: Player, val phoenix: 
     |§6§lPrecisa de ajuda? §e/ajuda
     |§6§lAlguma dúvida? §6§oPergunte no chat!
     |§8§m-§3§m-§b§m-§f§m-§b§m-§3§m-§8§m-
-""".trimMargin().toBaseComponent(),
-			"""§8§m-§3§m-§b§m-§f§m-§b§m-§3§m-§8§m
+""".trimMargin()
+			),
+			LegacyComponentSerializer.legacySection().deserialize(
+				"""§8§m-§3§m-§b§m-§f§m-§b§m-§3§m-§8§m
     |§f
     |§f
 	|§f
@@ -105,7 +109,8 @@ class PlayerScoreboard(val m: DreamScoreboard, val player: Player, val phoenix: 
     |
     |§f閌 §7SparklyPower é o servidor oficial da Loritta Morenitta! • https://loritta.website/ §f閌
     |§3§m✦-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-§b§m-§3§m-✦
-""".trimMargin().toBaseComponent()
+""".trimMargin()
+			)
 		)
 
 		if (DreamScoreboard.CURRENT_TICK == 0) {
