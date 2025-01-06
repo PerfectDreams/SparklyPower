@@ -220,7 +220,7 @@ class XizumBattle(
                 append(winner.displayName())
                 append(" §aé o vencedor!")
             }
-            
+
             XizumBattleResult.TIMEOUT -> textComponent {
                 append("§cA batalha entre ")
                 append(player.displayName())

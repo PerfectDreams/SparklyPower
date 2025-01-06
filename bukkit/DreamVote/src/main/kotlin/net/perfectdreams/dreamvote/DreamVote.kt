@@ -237,7 +237,7 @@ class DreamVote : KotlinPlugin() {
 				timeInMillis = System.currentTimeMillis()
 			}.get(Calendar.DAY_OF_WEEK)
 
-			val hasVotedThroughTheWeek = hasVotedThroughTheWeek(uniqueId) && dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
+			val hasVotedThroughTheWeek = hasVotedThroughTheWeek(uniqueId) && (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY)
 
 			switchContext(SynchronizationContext.SYNC)
 			earnedMoney = 0.0
