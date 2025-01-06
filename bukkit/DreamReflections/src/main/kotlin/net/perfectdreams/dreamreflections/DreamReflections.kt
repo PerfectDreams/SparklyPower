@@ -20,8 +20,10 @@ import net.perfectdreams.dreamreflections.commands.DreamReflectionsCommand
 import net.perfectdreams.dreamreflections.modules.autoclick.AutoClickListener
 import net.perfectdreams.dreamreflections.modules.autorespawn.AutoRespawnListener
 import net.perfectdreams.dreamreflections.modules.boatfly.BoatFlyListener
+import net.perfectdreams.dreamreflections.modules.fastplace.FastPlaceListener
 import net.perfectdreams.dreamreflections.modules.killaura.KillAuraListener
 import net.perfectdreams.dreamreflections.modules.killaura.KillAuraTester
+import net.perfectdreams.dreamreflections.modules.wurstcreativeflight.WurstCreativeFlightListener
 import net.perfectdreams.dreamreflections.modules.wurstkillauralegit.KillAuraLegitTester
 import net.perfectdreams.dreamreflections.modules.wurstnofall.WurstNoFallListener
 import net.perfectdreams.dreamreflections.sessions.ReflectionSession
@@ -78,16 +80,13 @@ class DreamReflections : KotlinPlugin(), Listener {
 	val activeReflectionSessions = ConcurrentHashMap<Player, ReflectionSession>()
 
 	override fun softEnable() {
-		/* transaction(Databases.databaseNetwork) {
-			SchemaUtils.createMissingTablesAndColumns(PlayerViolations)
-		} */
-
 		registerEvents(BoatFlyListener(this))
 		registerEvents(AutoClickListener(this))
 		registerEvents(KillAuraListener(this))
 		registerEvents(WurstNoFallListener(this))
 		registerEvents(AutoRespawnListener(this))
-		// registerEvents(WurstKillAuraLegitListener(this))
+		registerEvents(WurstCreativeFlightListener(this))
+		// registerEvents(FastPlaceListener(this))
 		registerEvents(this)
 		registerCommand(DreamReflectionsCommand(this))
 
@@ -104,6 +103,8 @@ class DreamReflections : KotlinPlugin(), Listener {
 					session.wurstNoFall.processDecay()
 					session.killAura.processDecay()
 					session.killAuraRotation.processDecay()
+					session.fastPlace.processDecay()
+					session.wurstCreativeFlight.processDecay()
 				}
 
 				delayTicks(1L)

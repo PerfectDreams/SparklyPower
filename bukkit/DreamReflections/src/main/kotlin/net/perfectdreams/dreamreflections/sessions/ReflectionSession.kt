@@ -25,6 +25,8 @@ class ReflectionSession(
     val killAuraRotation = KillAuraRotation(this)
     val killAura = KillAura(this)
     val autoRespawn = AutoRespawn(this)
+    val fastPlace = FastPlace(this)
+    val wurstCreativeFlight = WurstCreativeFlight(this)
 
     fun runOnMainThread(block: (ReflectionSession) -> (Unit)) {
         m.launchMainThread {

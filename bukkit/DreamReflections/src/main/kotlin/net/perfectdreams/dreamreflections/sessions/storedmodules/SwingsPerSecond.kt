@@ -34,7 +34,7 @@ class SwingsPerSecond(val session: ReflectionSession) {
 
         val cps = getClicksPerSecond()
 
-        if (cps >= 25.0) {
+        if (cps >= 50.0) {
             val diff = System.currentTimeMillis() - this.lastSpeedWarn
 
             if (diff >= DELAY_BETWEEN_MESSAGES) {

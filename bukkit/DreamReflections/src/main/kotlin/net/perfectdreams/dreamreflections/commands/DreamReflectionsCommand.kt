@@ -14,11 +14,11 @@ import net.perfectdreams.dreamcore.utils.commands.executors.SparklyCommandExecut
 import net.perfectdreams.dreamcore.utils.commands.options.CommandOptions
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamreflections.DreamReflections
-import net.perfectdreams.dreamreflections.modules.killaura.KillAuraTester
-import net.perfectdreams.dreamreflections.modules.wurstkillauralegit.KillAuraLegitTester
 import net.perfectdreams.dreamreflections.sessions.storedmodules.AutoRespawn
 import net.perfectdreams.dreamreflections.sessions.storedmodules.ViolationCounterModule
 import org.bukkit.Bukkit
+import org.bukkit.util.Vector
+import java.io.File
 
 class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarationWrapper {
     override fun declaration() = sparklyCommand(listOf("reflections")) {
@@ -29,6 +29,11 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
             executor = PlayerInfoExecutor(m)
         }
 
+        subcommand(listOf("topviolations")) {
+            permission = "dreamreflections.use"
+            executor = TopViolationsExecutor(m)
+        }
+
         subcommand(listOf("killaura")) {
             permission = "dreamreflections.use"
             executor = KillAuraTesterExecutor(m)
@@ -37,6 +42,11 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
         subcommand(listOf("killauralegit")) {
             permission = "dreamreflections.use"
             executor = KillAuraLegitTesterExecutor(m)
+        }
+
+        subcommand(listOf("nofallchecker")) {
+            permission = "dreamreflections.use"
+            executor = NoFallCheckerExecutor(m)
         }
     }
 
@@ -106,15 +116,15 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
                         color(NamedTextColor.RED)
                         content(" ${module.violations}x")
                     }
+                    appendNewline()
                 }
 
                 appendViolationCounterModule(session.boatFly)
-                appendNewline()
                 appendViolationCounterModule(session.wurstNoFall)
-                appendNewline()
                 appendViolationCounterModule(session.killAura)
-                appendNewline()
                 appendViolationCounterModule(session.killAuraRotation)
+                appendViolationCounterModule(session.fastPlace)
+                appendViolationCounterModule(session.wurstCreativeFlight)
                 appendNewline()
                 appendTextComponent {
                     color(TextColor.color(DreamReflections.MODULE_NAME_COLOR))
@@ -123,6 +133,39 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
                 appendTextComponent {
                     color(NamedTextColor.RED)
                     content(" ${suspiciousRespawns.size} respawns em menos de ${AutoRespawn.SUSPICIOUS_MILLISECONDS}ms")
+                }
+            }
+        }
+    }
+
+    class TopViolationsExecutor(val m: DreamReflections) : SparklyCommandExecutor() {
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            context.sendMessage {
+                for ((player, session) in m.activeReflectionSessions) {
+                    fun appendViolationCounterModuleIfNotZero(module: ViolationCounterModule) {
+                        if (module.violations != 0) {
+                            appendTextComponent {
+                                color(DreamReflections.MODULE_NAME_COLOR)
+                                content("${module.moduleName}:")
+                            }
+                            appendTextComponent {
+                                color(NamedTextColor.RED)
+                                content(" ${module.violations}x")
+                            }
+                            appendNewline()
+                        }
+                    }
+
+                    appendTextComponent {
+                        content("${player.name}:")
+                    }
+                    appendNewline()
+                    appendViolationCounterModuleIfNotZero(session.boatFly)
+                    appendViolationCounterModuleIfNotZero(session.wurstNoFall)
+                    appendViolationCounterModuleIfNotZero(session.killAura)
+                    appendViolationCounterModuleIfNotZero(session.killAuraRotation)
+                    appendViolationCounterModuleIfNotZero(session.fastPlace)
+                    appendViolationCounterModuleIfNotZero(session.wurstCreativeFlight)
                 }
             }
         }
@@ -173,6 +216,38 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
                 context.sendMessage {
                     color(NamedTextColor.RED)
                     content("Não foi possível iniciar o teste de KillAura... Será que o player já está sendo testado?")
+                }
+            }
+        }
+    }
+
+    class NoFallCheckerExecutor(val m: DreamReflections) : SparklyCommandExecutor() {
+        class Options : CommandOptions() {
+            val player = player("player")
+        }
+
+        override val options = Options()
+
+        override fun execute(context: CommandContext, args: CommandArguments) {
+            val player = args[options.player]
+
+            context.sendMessage {
+                color(NamedTextColor.YELLOW)
+                content("Executando teste de NoFall...")
+            }
+
+            val originalLocation = player.location
+
+            m.launchMainThread {
+                repeat(20) {
+                    player.teleport(originalLocation.clone().add(0.0, 1.0, 0.0))
+                    player.velocity = player.velocity.add(Vector(0f, -1.0f, 0.0f))
+                    delayTicks(1L)
+                }
+
+                context.sendMessage {
+                    color(NamedTextColor.GREEN)
+                    content("Teste finalizado!")
                 }
             }
         }

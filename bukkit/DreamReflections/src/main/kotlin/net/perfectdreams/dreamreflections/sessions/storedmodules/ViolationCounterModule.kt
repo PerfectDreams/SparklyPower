@@ -8,6 +8,7 @@ abstract class ViolationCounterModule(
     val moduleName: String,
     val requiresMainThread: Boolean,
     val requiredViolationsUntilWarning: Int,
+    val decayAfterTicks: Int = 300
 ) {
     var violations = 0
     var decayTicks = 0
@@ -32,7 +33,7 @@ abstract class ViolationCounterModule(
     }
 
     fun processDecay() {
-        if (this.decayTicks >= 300) {
+        if (this.decayTicks >= decayAfterTicks) {
             this.decayTicks = 0
             this.violations = (this.violations - 1).coerceAtLeast(0)
         } else {

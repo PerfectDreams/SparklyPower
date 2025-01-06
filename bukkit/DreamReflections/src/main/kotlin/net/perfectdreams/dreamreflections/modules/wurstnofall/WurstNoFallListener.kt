@@ -1,12 +1,9 @@
 package net.perfectdreams.dreamreflections.modules.wurstnofall
 
-import com.destroystokyo.paper.event.server.ServerTickEndEvent
-import kotlinx.datetime.Clock
+import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
 import net.perfectdreams.dreamcore.utils.packetevents.ServerboundPacketReceiveEvent
 import net.perfectdreams.dreamreflections.DreamReflections
-import org.bukkit.Bukkit
-import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 
@@ -15,34 +12,36 @@ class WurstNoFallListener(private val m: DreamReflections) : Listener {
     @EventHandler
     fun onPacket(e: ServerboundPacketReceiveEvent) {
         val packet = e.packet
-        if (packet is ServerboundMovePlayerPacket.StatusOnly) {
-            val session = m.getActiveReflectionSession(e.player) ?: return
 
+        // We ignore this because this causes the nofallchecker to bork out, but that's due to the order of when the player is teleported and stuff
+        if (packet is ServerboundClientTickEndPacket)
+            return
+
+        val session = m.getActiveReflectionSession(e.player) ?: return
+
+        // Wurst always sends the StatusOnly move packet first with the "onGround=true"
+        if (packet is ServerboundMovePlayerPacket.StatusOnly) {
             if (packet.isOnGround) {
-                session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrueOnThisTick = true
+                session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue = true
                 if (session.wurstNoFall.ignoreStatusOnlyPacketsUntil > System.currentTimeMillis()) {
                     e.isCancelled = true
                 }
+            } else {
+                session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue = false
             }
         } else if (packet is ServerboundMovePlayerPacket) {
-            val session = m.getActiveReflectionSession(e.player) ?: return
-
-            session.wurstNoFall.receivedMovementPacketOnThisTick = true
-        }
-    }
-
-    @EventHandler
-    fun onTick(e: ServerTickEndEvent) {
-        val expiresAfter = System.currentTimeMillis() + 5_000
-
-        for (session in m.activeReflectionSessions.values) {
-            if (session.wurstNoFall.receivedMovementPacketOnThisTick && session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrueOnThisTick) {
+            // Does this contradict what the client said before?
+            if (!packet.isOnGround && session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue) {
+                // Uh oh... someone's CHEATING!!!
+                session.wurstNoFall.ignoreStatusOnlyPacketsUntil = System.currentTimeMillis() + 5_000
                 session.wurstNoFall.increaseViolationLevel()
-                session.wurstNoFall.ignoreStatusOnlyPacketsUntil = expiresAfter
             }
 
-            session.wurstNoFall.receivedMovementPacketOnThisTick = false
-            session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrueOnThisTick = false
+            // Reset state!
+            session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue = false
+        } else {
+            // If not, then it is business as always...
+            session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue = false
         }
     }
 }
