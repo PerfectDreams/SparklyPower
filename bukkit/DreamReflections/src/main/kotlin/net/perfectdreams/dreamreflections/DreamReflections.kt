@@ -1,40 +1,48 @@
 package net.perfectdreams.dreamreflections
 
+import club.minnced.discord.webhook.WebhookClient
+import club.minnced.discord.webhook.WebhookClientBuilder
+import club.minnced.discord.webhook.send.WebhookEmbed
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder
+import club.minnced.discord.webhook.send.WebhookMessageBuilder
+import com.charleskorn.kaml.Yaml
 import com.viaversion.viaversion.api.Via
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion
 import kotlinx.datetime.Clock
-import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.minus
+import kotlinx.serialization.decodeFromString
 import net.kyori.adventure.text.TextComponent
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.format.TextDecoration
 import net.perfectdreams.dreambedrockintegrations.utils.isBedrockClient
 import net.perfectdreams.dreamcore.utils.KotlinPlugin
+import net.perfectdreams.dreamcore.utils.TextUtils
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.appendTextComponent
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.registerEvents
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamreflections.commands.DreamReflectionsCommand
+import net.perfectdreams.dreamreflections.config.DreamReflectionsConfig
+import net.perfectdreams.dreamreflections.discord.ViolationDiscordNotification
 import net.perfectdreams.dreamreflections.modules.autoclick.AutoClickListener
 import net.perfectdreams.dreamreflections.modules.autorespawn.AutoRespawnListener
 import net.perfectdreams.dreamreflections.modules.boatfly.BoatFlyListener
-import net.perfectdreams.dreamreflections.modules.fastplace.FastPlaceListener
+import net.perfectdreams.dreamreflections.modules.gamestate.GameStateListener
 import net.perfectdreams.dreamreflections.modules.killaura.KillAuraListener
 import net.perfectdreams.dreamreflections.modules.killaura.KillAuraTester
 import net.perfectdreams.dreamreflections.modules.wurstcreativeflight.WurstCreativeFlightListener
 import net.perfectdreams.dreamreflections.modules.wurstkillauralegit.KillAuraLegitTester
 import net.perfectdreams.dreamreflections.modules.wurstnofall.WurstNoFallListener
 import net.perfectdreams.dreamreflections.sessions.ReflectionSession
-import net.perfectdreams.dreamreflections.sessions.ReflectionSessionData
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import java.time.Instant
+import java.awt.Color
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 class DreamReflections : KotlinPlugin(), Listener {
@@ -78,8 +86,16 @@ class DreamReflections : KotlinPlugin(), Listener {
 	val killAuraTesters = mutableMapOf<Player, KillAuraTester>()
 	val killAuraLegitTesters = mutableMapOf<Player, KillAuraLegitTester>()
 	val activeReflectionSessions = ConcurrentHashMap<Player, ReflectionSession>()
+	var webhookClient: WebhookClient? = null
 
 	override fun softEnable() {
+		val config = Yaml.default.decodeFromString<DreamReflectionsConfig>(File(this.dataFolder, "config.yml").readText())
+		val webhookUrl = config.webhookUrl
+		if (webhookUrl != null) {
+			this.webhookClient = WebhookClientBuilder(config.webhookUrl).build()
+		}
+
+		registerEvents(GameStateListener(this))
 		registerEvents(BoatFlyListener(this))
 		registerEvents(AutoClickListener(this))
 		registerEvents(KillAuraListener(this))
@@ -163,6 +179,7 @@ class DreamReflections : KotlinPlugin(), Listener {
 		}
 		this.killAuraLegitTesters.clear()
 
+		webhookClient?.close()
 	}
 
 	@EventHandler
@@ -221,6 +238,51 @@ class DreamReflections : KotlinPlugin(), Listener {
 		}
 
 		this.componentLogger.info(component)
+	}
+
+	fun notifyDiscord(notification: ViolationDiscordNotification) {
+		val client = webhookClient
+		if (client != null) {
+			when (notification) {
+				is ViolationDiscordNotification.ViolationCounterDiscordNotification -> {
+					val player = notification.module.session.player
+					val tps = Bukkit.getTPS()
+					val tpsNow = "%.2f".format(tps[0])
+					val warpTarget = player.location
+					val worldXyz = "${player.world.name} ${TextUtils.ROUND_TO_2_DECIMAL.format(warpTarget.x)}, ${TextUtils.ROUND_TO_2_DECIMAL.format(warpTarget.y)}, ${TextUtils.ROUND_TO_2_DECIMAL.format(warpTarget.z)}"
+
+					val viaVersion = Via.getAPI()
+					val playerVersion = ProtocolVersion.getProtocol(viaVersion.getPlayerVersion(player)).name
+
+					val version = if (player.isBedrockClient) { "Minecraft: Bedrock Edition (emulando $playerVersion)" } else { "Minecraft: Java Edition $playerVersion" }
+
+					val hash = notification.module.moduleName.hashCode()
+					val red = (hash shr 16 and 0xFF) % 256
+					val green = (hash shr 8 and 0xFF) % 256
+					val blue = (hash and 0xFF) % 256
+					val color = Color(red, green, blue)
+
+					client.send(
+						WebhookMessageBuilder()
+							.addEmbeds(
+								WebhookEmbedBuilder()
+									.setAuthor(WebhookEmbed.EmbedAuthor(player.name, null, null))
+									.setTitle(WebhookEmbed.EmbedTitle("${notification.module.moduleName} (${notification.module.violations}x)", null))
+									.setThumbnailUrl("https://sparklypower.net/api/v1/render/avatar?name=${player.name}&scale=16")
+									.addField(WebhookEmbed.EmbedField(false, "Localização", worldXyz))
+									.addField(WebhookEmbed.EmbedField(false, "Client", "`$version` (`${player.clientBrandName}`)"))
+									.addField(WebhookEmbed.EmbedField(false, "TPS", tpsNow))
+									.addField(WebhookEmbed.EmbedField(false, "Ping do Player", "${player.ping}ms"))
+									.setFooter(WebhookEmbed.EmbedFooter("Alguém por favor sabe me informar se é assim que a banda toca mesmo", null))
+									.setColor(color.rgb)
+									.build()
+							)
+							.build()
+					)
+				}
+			}
+
+		}
 	}
 
 	fun spawnKillAuraTester(player: Player): Boolean {

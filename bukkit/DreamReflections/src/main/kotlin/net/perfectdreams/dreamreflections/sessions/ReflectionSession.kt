@@ -3,14 +3,12 @@ package net.perfectdreams.dreamreflections.sessions
 import kotlinx.datetime.Instant
 import net.kyori.adventure.text.TextComponent
 import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.format.TextColor
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.appendTextComponent
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamreflections.DreamReflections
 import net.perfectdreams.dreamreflections.sessions.storedmodules.*
 import org.bukkit.entity.Player
-import kotlin.time.Duration.Companion.milliseconds
 
 class ReflectionSession(
     val m: DreamReflections,
@@ -19,6 +17,9 @@ class ReflectionSession(
     val isBedrockClient: Boolean,
     val createdAt: Instant
 ) {
+    val clientGameState = ClientGameState()
+    val serverGameState = ServerGameState()
+
     val swingsPerSecond = SwingsPerSecond(this)
     val boatFly = BoatFly(this)
     val wurstNoFall = WurstNoFall(this)
@@ -27,6 +28,15 @@ class ReflectionSession(
     val autoRespawn = AutoRespawn(this)
     val fastPlace = FastPlace(this)
     val wurstCreativeFlight = WurstCreativeFlight(this)
+
+    val violationCounterModules = listOf(
+        boatFly,
+        wurstNoFall,
+        killAura,
+        killAuraRotation,
+        fastPlace,
+        wurstCreativeFlight
+    )
 
     fun runOnMainThread(block: (ReflectionSession) -> (Unit)) {
         m.launchMainThread {

@@ -1,6 +1,7 @@
 package net.perfectdreams.dreamreflections.sessions.storedmodules
 
 import net.perfectdreams.dreamcore.utils.DreamUtils
+import net.perfectdreams.dreamreflections.discord.ViolationDiscordNotification
 import net.perfectdreams.dreamreflections.sessions.ReflectionSession
 
 abstract class ViolationCounterModule(
@@ -8,7 +9,8 @@ abstract class ViolationCounterModule(
     val moduleName: String,
     val requiresMainThread: Boolean,
     val requiredViolationsUntilWarning: Int,
-    val decayAfterTicks: Int = 300
+    val decayAfterTicks: Int = 300,
+    val discordNotificationEveryXWarnings: Int = 10
 ) {
     var violations = 0
     var decayTicks = 0
@@ -22,13 +24,24 @@ abstract class ViolationCounterModule(
 
         this.violations += amount
 
-        if (this.violations >= requiredViolationsUntilWarning) {
+        if (this.violations >= this.requiredViolationsUntilWarning) {
             session.m.notifyStaff(
                 session.createCheckFailMessage(
                     moduleName,
                     this.violations
                 )
             )
+
+            val baseRel = if (this.requiredViolationsUntilWarning == 0)
+                1
+            else
+                this.requiredViolationsUntilWarning
+
+            val relative = this.violations - baseRel
+
+            if (relative % this.discordNotificationEveryXWarnings == 0) {
+                session.m.notifyDiscord(ViolationDiscordNotification.ViolationCounterDiscordNotification(this))
+            }
         }
     }
 

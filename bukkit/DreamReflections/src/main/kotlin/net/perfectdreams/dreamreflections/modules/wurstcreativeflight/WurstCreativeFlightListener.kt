@@ -16,7 +16,7 @@ class WurstCreativeFlightListener(private val m: DreamReflections) : Listener {
         val packet = e.packet
 
         if (packet is ServerboundPlayerAbilitiesPacket) {
-            // Yes... I don't know why they don't filter the abilites packet when CreativeFlight is enabled...
+            // Yes... I don't know why they don't filter the abilities packet when CreativeFlight is enabled...
             if (packet.isFlying && !e.player.allowFlight) {
                 val session = m.getActiveReflectionSession(e.player) ?: return
                 session.wurstCreativeFlight.increaseViolationLevel()

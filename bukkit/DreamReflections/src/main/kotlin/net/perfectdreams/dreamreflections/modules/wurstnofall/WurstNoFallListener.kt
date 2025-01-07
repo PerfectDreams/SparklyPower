@@ -34,7 +34,16 @@ class WurstNoFallListener(private val m: DreamReflections) : Listener {
             if (!packet.isOnGround && session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue) {
                 // Uh oh... someone's CHEATING!!!
                 session.wurstNoFall.ignoreStatusOnlyPacketsUntil = System.currentTimeMillis() + 5_000
-                session.wurstNoFall.increaseViolationLevel()
+
+                // This seems weird... "why don't you add this check before everything?"
+                // Well the reason is that, if we don't process the movement packets while awaiting teleport, OTHER false positives arise
+                //
+                // Ignore any movement packets if we are awaiting a teleport confirmation
+                // This is what the vanilla server does, and we NEED to do this to work around some janky suspicious packet from vanilla clients
+                // (This happens a lot when teleporting to a new location rapidly, like going up elevators in SparklyPower)
+                if (!session.clientGameState.awaitingTeleportConfirmation) {
+                    session.wurstNoFall.increaseViolationLevel()
+                }
             }
 
             // Reset state!

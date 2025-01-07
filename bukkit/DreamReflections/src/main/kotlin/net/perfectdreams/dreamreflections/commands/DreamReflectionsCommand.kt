@@ -119,12 +119,9 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
                     appendNewline()
                 }
 
-                appendViolationCounterModule(session.boatFly)
-                appendViolationCounterModule(session.wurstNoFall)
-                appendViolationCounterModule(session.killAura)
-                appendViolationCounterModule(session.killAuraRotation)
-                appendViolationCounterModule(session.fastPlace)
-                appendViolationCounterModule(session.wurstCreativeFlight)
+                for (module in session.violationCounterModules) {
+                    appendViolationCounterModule(module)
+                }
                 appendNewline()
                 appendTextComponent {
                     color(TextColor.color(DreamReflections.MODULE_NAME_COLOR))
@@ -160,12 +157,9 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
                         content("${player.name}:")
                     }
                     appendNewline()
-                    appendViolationCounterModuleIfNotZero(session.boatFly)
-                    appendViolationCounterModuleIfNotZero(session.wurstNoFall)
-                    appendViolationCounterModuleIfNotZero(session.killAura)
-                    appendViolationCounterModuleIfNotZero(session.killAuraRotation)
-                    appendViolationCounterModuleIfNotZero(session.fastPlace)
-                    appendViolationCounterModuleIfNotZero(session.wurstCreativeFlight)
+                    for (module in session.violationCounterModules) {
+                        appendViolationCounterModuleIfNotZero(module)
+                    }
                 }
             }
         }
@@ -240,8 +234,8 @@ class DreamReflectionsCommand(val m: DreamReflections) : SparklyCommandDeclarati
 
             m.launchMainThread {
                 repeat(20) {
-                    player.teleport(originalLocation.clone().add(0.0, 1.0, 0.0))
-                    player.velocity = player.velocity.add(Vector(0f, -1.0f, 0.0f))
+                    player.teleport(originalLocation.clone().add(0.0, 1.5, 0.0))
+                    player.velocity = player.velocity.add(Vector(0f, -1.5f, 0.0f))
                     delayTicks(1L)
                 }
 
