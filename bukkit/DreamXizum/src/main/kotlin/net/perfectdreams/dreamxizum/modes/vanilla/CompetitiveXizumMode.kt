@@ -8,6 +8,8 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 
 class CompetitiveXizumMode(m: DreamXizum) : AbstractXizumBattleMode(XizumBattleMode.COMPETITIVE, m) {
+    override val duration = 180
+
     override fun setupInventory(players: Pair<Player, Player>) {
         players.toList().forEach {
             it.inventory.clear()

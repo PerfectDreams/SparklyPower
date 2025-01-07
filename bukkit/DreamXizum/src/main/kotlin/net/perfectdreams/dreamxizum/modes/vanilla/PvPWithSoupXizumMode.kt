@@ -12,6 +12,8 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.ItemStack
 
 class PvPWithSoupXizumMode(m: DreamXizum) : AbstractXizumBattleMode(XizumBattleMode.PVP_WITH_SOUP, m), Listener {
+    override val duration = 180
+
     override fun setupInventory(players: Pair<Player, Player>) {
         for (player in players.toList()) {
             player.inventory.clear()

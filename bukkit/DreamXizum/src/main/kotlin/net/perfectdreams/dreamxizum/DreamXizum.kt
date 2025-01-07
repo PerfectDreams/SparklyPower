@@ -1,6 +1,7 @@
 package net.perfectdreams.dreamxizum
 
 import com.okkero.skedule.schedule
+import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.kyori.adventure.text.format.NamedTextColor
@@ -8,6 +9,7 @@ import net.kyori.adventure.text.format.TextDecoration
 import net.perfectdreams.dreamcore.utils.*
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
+import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamxizum.commands.DreamXizumCommand
 import net.perfectdreams.dreamxizum.commands.XizumCommand
 import net.perfectdreams.dreamxizum.listeners.BattleListener
@@ -250,6 +252,30 @@ class DreamXizum : KotlinPlugin() {
 
                 val (playerRequest, otherRequest) = findMatchRequests(mode) ?: return
 
+                // wait for 40 sticks (2 seconds) to make sure the player saw the title
+
+                if (mode == XizumBattleMode.COMPETITIVE) {
+                    val player = transaction(Databases.databaseNetwork) {
+                        XizumProfile.findOrCreate(playerRequest.player.uniqueId)
+                    }
+
+                    val otherPlayer = transaction(Databases.databaseNetwork) {
+                        XizumProfile.findOrCreate(otherRequest.player.uniqueId)
+                    }
+
+                    playerRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §7[${XizumRank.getTextByRating(otherPlayer.rating)}§7] §b${otherRequest.player.name}", 20, 40, 20)
+                    otherRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §7[${XizumRank.getTextByRating(player.rating)}§7] §b${playerRequest.player.name}", 20, 40, 20)
+
+
+                } else {
+                    playerRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §b${otherRequest.player.name}", 20, 40, 20)
+                    otherRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §b${playerRequest.player.name}", 20, 40, 20)
+                }
+
+                listOf(playerRequest, otherRequest).forEach {
+                    it.player.playSound(it.player.location, "entity.player.levelup", 1f, 1f)
+                }
+
                 queue.removeAll(setOf(playerRequest, otherRequest))
 
                 val arena = arenas.filter { !it.inUse && it.data.mode == mode }.randomOrNull() ?: return notifyNoArena(playerRequest, otherRequest)
@@ -275,9 +301,13 @@ class DreamXizum : KotlinPlugin() {
                 }
 
                 if (newMode != null) {
-                    val battle = XizumBattle(this, arena, newMode, playerRequest.player, otherRequest.player)
-                    battle.start()
-                    activeBattles.add(battle)
+                    launchMainThread {
+                        delayTicks(40L)
+
+                        val battle = XizumBattle(this@DreamXizum, arena, newMode, playerRequest.player, otherRequest.player)
+                        battle.start()
+                        activeBattles.add(battle)
+                    }
                 }
             }
         }
@@ -317,6 +347,7 @@ class DreamXizum : KotlinPlugin() {
             else -> {
                 val playerRequest = queue.filter { it.mode.enum == mode && it.opponent == null }.randomOrNull() ?: return null
                 val otherRequest = queue.filter { it.mode.enum == mode && it.opponent == null && it.player != playerRequest.player }.randomOrNull() ?: return null
+
                 return Pair(playerRequest, otherRequest)
             }
         }

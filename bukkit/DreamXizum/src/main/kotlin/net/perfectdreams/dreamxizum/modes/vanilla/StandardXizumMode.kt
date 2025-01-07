@@ -6,6 +6,8 @@ import net.perfectdreams.dreamxizum.utils.XizumBattleMode
 import org.bukkit.entity.Player
 
 class StandardXizumMode(m: DreamXizum) : AbstractXizumBattleMode(XizumBattleMode.STANDARD, m) {
+    override val duration = 180
+
     override fun setupInventory(players: Pair<Player, Player>) {
         // don't need to do anything here
     }
