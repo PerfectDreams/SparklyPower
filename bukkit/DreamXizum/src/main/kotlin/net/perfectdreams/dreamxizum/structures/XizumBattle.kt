@@ -113,10 +113,9 @@ class XizumBattle(
             countdown = true
 
             for (idx in 5 downTo 1) {
-                player.sendTitle("§c$idx", "§7Você está lutando contra §b${opponent.name}§7! Boa sorte.", 10, 20, 10)
-                opponent.sendTitle("§c$idx", "§7Você está lutando contra §b${player.name}§7! Boa sorte.", 10, 20, 10)
-
                 listOf(player, opponent).forEach {
+                    it.sendTitle("§c$idx", "§7Prepare-se para a batalha!", 10, 20, 10)
+
                     it.sendActionBar(textComponent {
                         color(NamedTextColor.GREEN)
                         XizumBattleMode.prettify(mode.enum)?.let { it1 -> append(it1) }
