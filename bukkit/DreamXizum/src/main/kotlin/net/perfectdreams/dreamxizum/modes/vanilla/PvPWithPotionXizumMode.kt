@@ -15,6 +15,8 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 
 class PvPWithPotionXizumMode(m: DreamXizum) : AbstractXizumBattleMode(XizumBattleMode.PVP_WITH_POTION, m) {
+    override val duration = 240
+
     override fun setupInventory(players: Pair<Player, Player>) {
         val helmet = ItemStack(Material.DIAMOND_HELMET)
         helmet.addEnchantments(
@@ -51,9 +53,13 @@ class PvPWithPotionXizumMode(m: DreamXizum) : AbstractXizumBattleMode(XizumBattl
         val sword = ItemStack(Material.DIAMOND_SWORD)
         sword.addEnchantments(
             mapOf(
-                Enchantment.SHARPNESS to 5,
                 Enchantment.FIRE_ASPECT to 2,
                 Enchantment.UNBREAKING to 3
+            )
+        )
+        sword.addUnsafeEnchantments(
+            mapOf(
+                Enchantment.SHARPNESS to 7
             )
         )
 

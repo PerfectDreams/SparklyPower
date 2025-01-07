@@ -49,7 +49,7 @@ class XizumBattle(
     var countdown = false
     var started = false
     var ended = false
-    var duration = 180
+    var duration = mode.duration
 
     var playerPreviousInventory = arrayOf<ItemStack?>()
     var opponentPreviousInventory = arrayOf<ItemStack?>()
@@ -131,10 +131,9 @@ class XizumBattle(
 
             started = true
 
-            Bukkit.getOnlinePlayers().forEach {
-                if (it == player || it == opponent)
-                    return@forEach
+            val allPlayers = Bukkit.getOnlinePlayers().toMutableList().filter { it != player && it != opponent }
 
+            allPlayers.forEach {
                 player.hidePlayer(m, it)
                 opponent.hidePlayer(m, it)
             }
@@ -193,8 +192,8 @@ class XizumBattle(
 
             XizumBattleResult.KILLED -> textComponent {
                 append(winner.displayName())
-                append(" §7(§c❤${winner.health / 2}§7) ")
-                append(" §atriunfou sobre ")
+                append(" §7(§c❤${"%.2f".format((winner.health / 2))}§7) ")
+                append("§atriunfou sobre ")
                 append(loser.displayName())
                 append("§a! A batalha foi encerrada!")
             }
@@ -318,7 +317,9 @@ class XizumBattle(
             }
 
             onMainThread {
-                Bukkit.getOnlinePlayers().forEach {
+                val allPlayers = Bukkit.getOnlinePlayers().toMutableList().filter { it != player && it != opponent }
+
+                allPlayers.forEach {
                     player.showPlayer(m, it)
                     opponent.showPlayer(m, it)
                 }
@@ -328,10 +329,11 @@ class XizumBattle(
                     val currentRank = XizumRank.entries.lastOrNull { it.rating <= winnerTotalPoints }
 
                     if (previousRank != null && currentRank != previousRank) {
-                        announceToAllPlayersInXizumWorld(textComponent {
+                        m.server.broadcast(textComponent {
                             append(DreamXizum.prefix())
                             appendSpace()
-                            append("§b${winner.displayName} §7subiu de rank de ${previousRank.text} §7para ${currentRank?.text}§7!")
+                            append(winner.displayName())
+                            append(" §7subiu de rank de ${previousRank.text} §7para ${currentRank?.text}§7!")
                         })
                     }
 

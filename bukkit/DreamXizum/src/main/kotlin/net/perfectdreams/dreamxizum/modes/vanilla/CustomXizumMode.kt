@@ -7,6 +7,8 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 
 class CustomXizumMode(var playerItems: Array<ItemStack?>, var opponentItems: Array<ItemStack?>, m: DreamXizum) : AbstractXizumBattleMode(XizumBattleMode.CUSTOM, m) {
+    override val duration = 180
+
     override fun setupInventory(players: Pair<Player, Player>) {
         players.first.inventory.clear()
         players.second.inventory.clear()
