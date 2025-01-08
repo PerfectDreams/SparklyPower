@@ -28,6 +28,7 @@ import org.bukkit.event.Listener
 import org.bukkit.event.inventory.CraftItemEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryType
+import org.bukkit.event.server.MapInitializeEvent
 import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
@@ -62,6 +63,7 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 	val imageFolder = File(dataFolder, "img")
 	val loriCoolCardsHandler = LoriCoolCardsHandler(this)
 	lateinit var config: DreamMapWatermarkerConfig
+	val semaphore = Semaphore(32)
 
 	override fun softEnable() {
 		super.softEnable()
@@ -84,7 +86,7 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 			)
 		}
 
-		restoreMaps()
+		// restoreMaps()
 
 		if (config.generateLorittaFigurittas) {
 			loriCoolCardsHandler.startLoriCoolCardsMapGenerator()
@@ -161,60 +163,6 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 		// Bukkit.broadcastMessage("Moveu item ${event.destination}")
 	}
 
-	fun restoreMaps() {
-		if (!imageFolder.exists()) {
-			logger.warning { "Image Folder does not exist! Skipping map restore process..." }
-			return
-		}
-
-		// Load the maps in parallel, to speed up server load times
-		val jobs = mutableListOf<Job>()
-		val semaphore = Semaphore(32)
-
-		for (it in imageFolder.listFiles()) {
-			if (it.extension == "png") {
-				val mapId = it.nameWithoutExtension.toIntOrNull()
-				if (mapId == null) {
-					logger.warning { "Invalid Map ID ${it.nameWithoutExtension}! Skipping..." }
-					continue
-				}
-
-				// We read the map on the main thread to avoid concurrency issues
-				// While I don't think I ever had concurrency issues, I already had an issue where some maps just didn't *exist* on the server
-				// (as in, no image on the map, using vanilla map renderer)
-				// so let's switch this to the main thread just because this call DOES use a non-concurrent safe HashMap
-				val mapView = Bukkit.getMap(mapId)
-				if (mapView == null) {
-					logger.warning { "Map with ID $mapId does not exist! The map must exist/claimed before we are able to restore it! Skipping..." }
-					continue
-				}
-
-				jobs.add(
-					GlobalScope.launch(Dispatchers.IO) {
-						semaphore.withPermit {
-							val image = ImageIO.read(it)
-
-							mapView.isLocked = true // Optimizes the map because the server doesn't attempt to get the world data when the player is holding the map in their hand
-							val renderers: List<MapRenderer> = mapView.renderers
-
-							for (r in renderers) {
-								mapView.removeRenderer(r)
-							}
-
-							mapView.addRenderer(ImgRenderer(MapPalette.imageToBytes(image)))
-
-							logger.info { "Restored map $mapId!" }
-						}
-					}
-				)
-			}
-		}
-
-		runBlocking {
-			jobs.joinAll()
-		}
-	}
-
 	/**
 	 * Converts a given Image into a BufferedImage
 	 *
@@ -262,5 +210,40 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 		}
 
 		return map
+	}
+
+	@EventHandler
+	fun onInitialize(event: MapInitializeEvent) {
+		// Instead of preloading everything on startup (which is VERY slow if you have a lot of maps) we will do "async" preloading of the maps
+		// This way, we only need to load the maps that are ACTUALLY loaded and used in the server
+		// [08:00:44] [DefaultDispatcher-worker-1/INFO]: [DreamMapWatermarker] Restored map 20576!
+		// [08:00:56] [DefaultDispatcher-worker-27/INFO]: [DreamMapWatermarker] Restored map 26197!
+
+		val mapView = event.map
+		val file = File(imageFolder, "${event.map.id}.png")
+
+		if (file.exists()) {
+			logger.info { "Attempting to restore map ${event.map.id} asynchronously..." }
+
+			// It exists! Lock it already!!
+			mapView.isLocked = true // Optimizes the map because the server doesn't attempt to get the world data when the player is holding the map in their hand
+
+			// And remove all renderers too, we won't need those
+			val renderers: List<MapRenderer> = mapView.renderers
+
+			for (r in renderers) {
+				mapView.removeRenderer(r)
+			}
+
+			launchAsyncThread {
+				semaphore.withPermit {
+					val image = ImageIO.read(file)
+
+					mapView.addRenderer(ImgRenderer(MapPalette.imageToBytes(image)))
+
+					logger.info { "Restored map ${event.map.id} asynchronously!" }
+				}
+			}
+		}
 	}
 }
