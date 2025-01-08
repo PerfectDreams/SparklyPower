@@ -123,7 +123,7 @@ class DreamBedrockIntegrations : KotlinPlugin(), Listener, PluginMessageListener
 					val response = DreamCore.INSTANCE.rpc.proxy.makeRPCRequest<ProxyGeyserStatusResponse>(
 						ProxyGeyserStatusRequest(event.uniqueId)
 					)
-					logger.info("Geyser Connection Check for ${event.name} (${event.uniqueId}) is ${DefaultFontInfo.r}")
+					logger.info("Geyser Connection Check for ${event.name} (${event.uniqueId}) is $response")
 
 					when (response) {
 						is ProxyGeyserStatusResponse.Success -> {
