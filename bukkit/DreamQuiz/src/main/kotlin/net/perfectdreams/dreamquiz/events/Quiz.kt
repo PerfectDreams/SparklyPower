@@ -170,7 +170,7 @@ class Quiz(val m: DreamQuiz) : ServerEvent("Quiz", "") {
 
             val moreThanOne = players.size != 1
             val message = if (players.isNotEmpty()) {
-                "${DreamQuiz.PREFIX} Parabéns ao${if (moreThanOne) "s" else ""} player${if (moreThanOne) "s" else ""} ${players.joinToString(", " , transform = { "§b${it.name}§e" })}! Eles ganharam §c1 pesadelo§e!"
+                "${DreamQuiz.PREFIX} Parabéns ao${if (moreThanOne) "s" else ""} player${if (moreThanOne) "s" else ""} ${players.joinToString(", " , transform = { "§b${it.name}§e" })}! Eles ganharam §c2 pesadelos§e!"
             } else {
                 "${DreamQuiz.PREFIX} Ninguém ganhou o Evento Quiz! Eu achava que vocês eram mais inteligentes..."
             }
