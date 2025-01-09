@@ -1,6 +1,8 @@
 package net.perfectdreams.dreamfusca
 
+import com.comphenix.packetwrapper.WrapperPlayClientSteerVehicle
 import com.comphenix.protocol.ProtocolLibrary
+import com.comphenix.protocol.events.PacketEvent
 import com.github.salomonbrys.kotson.fromJson
 import com.okkero.skedule.SynchronizationContext
 import com.okkero.skedule.schedule
@@ -9,18 +11,23 @@ import net.perfectdreams.dreamcore.utils.*
 import net.perfectdreams.dreamcore.utils.commands.*
 import net.perfectdreams.dreamcore.utils.extensions.canPlaceAt
 import net.perfectdreams.dreamcore.utils.extensions.meta
-import net.perfectdreams.dreamfusca.utils.CarHandlerPacketAdapter
+import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamfusca.utils.CarInfo
 import net.perfectdreams.dreamfusca.utils.CarType
 import org.bukkit.Bukkit
 import org.bukkit.Material
+import org.bukkit.Particle
 import org.bukkit.Sound
+import org.bukkit.block.Block
+import org.bukkit.block.BlockFace
 import org.bukkit.entity.EntityType
+import org.bukkit.entity.Minecart
 import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.event.player.PlayerInputEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.vehicle.VehicleDestroyEvent
 import org.bukkit.event.vehicle.VehicleEnterEvent
@@ -63,8 +70,6 @@ class DreamFusca : KotlinPlugin(), Listener {
 		}
 
 		registerEvents(this)
-		val protocolManager = ProtocolLibrary.getProtocolManager();
-		protocolManager.addPacketListener(CarHandlerPacketAdapter(this))
 
 		scheduler().schedule(this, SynchronizationContext.ASYNC) {
 			while (true) {
@@ -113,6 +118,67 @@ class DreamFusca : KotlinPlugin(), Listener {
 				player.inventory.addItem(itemStack)
 			}
 		})
+
+		launchMainThread {
+			while (true) {
+				for (player in Bukkit.getOnlinePlayers()) {
+					val vehicle = player.vehicle ?: continue
+
+					if (player.isInsideVehicle && vehicle.type == EntityType.MINECART && cars.contains(vehicle.uniqueId)) {
+						val input = player.currentInput
+
+						val minecart = vehicle as Minecart
+						minecart.maxSpeed = 100.0
+						var velocity = player.location.direction.setY(0)
+						val blockBelow = minecart.location.block.getRelative(BlockFace.DOWN)
+
+						val isRoad = isRoad(blockBelow)
+
+						if (input.isForward) {
+							if (isRoad) {
+								velocity = velocity.multiply(1.20)
+							} else {
+								velocity = velocity.multiply(0.25)
+							}
+						} else if (input.isBackward) {
+							velocity = velocity.multiply(-0.25)
+						} else {
+							velocity = vehicle.velocity // Resetar velocidade
+						}
+
+						// Players are normallyshifted a lil bit to the ground when inside a minecart
+						// So we are going to shift it a lil bit
+						val playerLocationShiftedALittleBitAboveTheGround = player.location.clone().add(0.0, 0.5, 0.0)
+
+						val blockFace = yawToFace(playerLocationShiftedALittleBitAboveTheGround.yaw)
+						val inFrontOf = playerLocationShiftedALittleBitAboveTheGround.block.getRelative(blockFace).type
+
+						if (inFrontOf.name.contains("SLAB")) {
+							velocity = velocity.setY(velocity.y + 0.5)
+						} else if (blockBelow.type == Material.AIR) {
+							velocity = velocity.setY(velocity.y - 0.5)
+						}
+
+						val sendParticles = vehicle.velocity != velocity
+						vehicle.velocity = velocity
+
+						if (sendParticles) {
+							vehicle.world.spawnParticle(
+								Particle.CAMPFIRE_COSY_SMOKE,
+								vehicle.location.clone().add(
+									velocity.multiply(-2)
+								),
+								0,
+								0.0,
+								0.01,
+								0.0
+							)
+						}
+					}
+				}
+				delayTicks(1L)
+			}
+		}
 	}
 
 	override fun softDisable() {
@@ -270,4 +336,21 @@ class DreamFusca : KotlinPlugin(), Listener {
 			e.item = itemStack
 		}
 	}
+
+	fun yawToFace(yaw: Float): BlockFace {
+		val roundedYaw = (yaw.toInt() + 360) % 360
+		return if (roundedYaw in 45..134)
+			BlockFace.WEST
+		else if (roundedYaw in 135..224)
+			BlockFace.NORTH
+		else if (roundedYaw in 225..315)
+			BlockFace.EAST
+		else BlockFace.SOUTH
+	}
+
+	fun isRoad(block: Block) = block.type in blocks ||
+			block.getRelative(BlockFace.SOUTH).type in blocks ||
+			block.getRelative(BlockFace.NORTH).type in blocks ||
+			block.getRelative(BlockFace.EAST).type in blocks ||
+			block.getRelative(BlockFace.WEST).type in blocks
 }
