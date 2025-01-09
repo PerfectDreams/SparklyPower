@@ -63,6 +63,11 @@ class DreamEsponjas : KotlinPlugin(), Listener {
 				// Alterar velocidade do player
 				val velocity = e.player.velocity
 				velocity.y = 2.0
+				// Reset fall distance damage
+				// While we don't need to do this in a "vanilla" enviornment, SparklyPaper (actually, DreamReflections) has code changes to change fall distance behavior to fix
+				// NoFall hacks, this does affect sponges because the fall distance is not reset when the player is launched upwards
+				// So we will reset it here
+				e.player.fallDistance = 0f
 
 				when (directional.facing) {
 					BlockFace.SOUTH -> velocity.z = -4.0
@@ -97,6 +102,11 @@ class DreamEsponjas : KotlinPlugin(), Listener {
 			val velocity = e.player.velocity
 			velocity.y = 2.0
 			e.player.velocity = velocity
+			// Reset fall distance damage
+			// While we don't need to do this in a "vanilla" enviornment, SparklyPaper (actually, DreamReflections) has code changes to change fall distance behavior to fix
+			// NoFall hacks, this does affect sponges because the fall distance is not reset when the player is launched upwards
+			// So we will reset it here
+			e.player.fallDistance = 0f
 
 			// Tocar som de fogos de artifício
 			e.player.world.playSound(e.player.location, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1F, 1F)

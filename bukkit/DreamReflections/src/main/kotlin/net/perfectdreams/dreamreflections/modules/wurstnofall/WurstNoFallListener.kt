@@ -8,7 +8,8 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 
 class WurstNoFallListener(private val m: DreamReflections) : Listener {
-    // Blocks Wurst's simple NoFall hack
+    // Detects Wurst's simple NoFall hack
+    // We don't attempt to mitigate here, just detection, because we already have a better, more "generic", NoFall detection mechanism
     @EventHandler
     fun onPacket(e: ServerboundPacketReceiveEvent) {
         val packet = e.packet
@@ -23,9 +24,6 @@ class WurstNoFallListener(private val m: DreamReflections) : Listener {
         if (packet is ServerboundMovePlayerPacket.StatusOnly) {
             if (packet.isOnGround) {
                 session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue = true
-                if (session.wurstNoFall.ignoreStatusOnlyPacketsUntil > System.currentTimeMillis()) {
-                    e.isCancelled = true
-                }
             } else {
                 session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue = false
             }
@@ -33,7 +31,6 @@ class WurstNoFallListener(private val m: DreamReflections) : Listener {
             // Does this contradict what the client said before?
             if (!packet.isOnGround && session.wurstNoFall.receivedStatusOnlyPacketWithOnGroundTrue) {
                 // Uh oh... someone's CHEATING!!!
-                session.wurstNoFall.ignoreStatusOnlyPacketsUntil = System.currentTimeMillis() + 5_000
 
                 // This seems weird... "why don't you add this check before everything?"
                 // Well the reason is that, if we don't process the movement packets while awaiting teleport, OTHER false positives arise

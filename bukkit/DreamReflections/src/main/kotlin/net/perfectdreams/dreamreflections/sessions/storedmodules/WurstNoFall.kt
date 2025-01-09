@@ -4,5 +4,4 @@ import net.perfectdreams.dreamreflections.sessions.ReflectionSession
 
 class WurstNoFall(session: ReflectionSession) : ViolationCounterModule(session, "NoFall (Wurst)", false, 10) {
     var receivedStatusOnlyPacketWithOnGroundTrue = false
-    var ignoreStatusOnlyPacketsUntil = 0L
 }

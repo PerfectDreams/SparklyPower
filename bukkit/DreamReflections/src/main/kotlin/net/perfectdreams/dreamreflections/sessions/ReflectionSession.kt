@@ -7,6 +7,7 @@ import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.appendTextComponent
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamreflections.DreamReflections
+import net.perfectdreams.dreamreflections.modules.lbnofallhoplite.LBNoFallHopliteListener
 import net.perfectdreams.dreamreflections.sessions.storedmodules.*
 import org.bukkit.entity.Player
 
@@ -28,14 +29,20 @@ class ReflectionSession(
     val autoRespawn = AutoRespawn(this)
     val fastPlace = FastPlace(this)
     val wurstCreativeFlight = WurstCreativeFlight(this)
+    val lbNoFallHoplite = LBNoFallHoplite(this)
+    val lbNoFallForceJump = LBNoFallForceJump(this)
+    val noFall = NoFall(this)
 
     val violationCounterModules = listOf(
         boatFly,
-        wurstNoFall,
         killAura,
         killAuraRotation,
         fastPlace,
-        wurstCreativeFlight
+        wurstCreativeFlight,
+        noFall,
+        wurstNoFall,
+        lbNoFallHoplite,
+        lbNoFallForceJump,
     )
 
     fun runOnMainThread(block: (ReflectionSession) -> (Unit)) {

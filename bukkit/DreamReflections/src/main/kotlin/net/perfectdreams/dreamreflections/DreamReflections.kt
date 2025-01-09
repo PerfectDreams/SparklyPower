@@ -31,6 +31,9 @@ import net.perfectdreams.dreamreflections.modules.boatfly.BoatFlyListener
 import net.perfectdreams.dreamreflections.modules.gamestate.GameStateListener
 import net.perfectdreams.dreamreflections.modules.killaura.KillAuraListener
 import net.perfectdreams.dreamreflections.modules.killaura.KillAuraTester
+import net.perfectdreams.dreamreflections.modules.lbnofallforcejump.LBNoFallForceJumpListener
+import net.perfectdreams.dreamreflections.modules.lbnofallhoplite.LBNoFallHopliteListener
+import net.perfectdreams.dreamreflections.modules.nofall.NoFallListener
 import net.perfectdreams.dreamreflections.modules.wurstcreativeflight.WurstCreativeFlightListener
 import net.perfectdreams.dreamreflections.modules.wurstkillauralegit.KillAuraLegitTester
 import net.perfectdreams.dreamreflections.modules.wurstnofall.WurstNoFallListener
@@ -102,6 +105,9 @@ class DreamReflections : KotlinPlugin(), Listener {
 		registerEvents(WurstNoFallListener(this))
 		registerEvents(AutoRespawnListener(this))
 		registerEvents(WurstCreativeFlightListener(this))
+		registerEvents(NoFallListener(this))
+		registerEvents(LBNoFallHopliteListener(this))
+		registerEvents(LBNoFallForceJumpListener(this))
 		// registerEvents(FastPlaceListener(this))
 		registerEvents(this)
 		registerCommand(DreamReflectionsCommand(this))
@@ -115,12 +121,9 @@ class DreamReflections : KotlinPlugin(), Listener {
 		launchMainThread {
 			while (true) {
 				for ((player, session) in activeReflectionSessions) {
-					session.boatFly.processDecay()
-					session.wurstNoFall.processDecay()
-					session.killAura.processDecay()
-					session.killAuraRotation.processDecay()
-					session.fastPlace.processDecay()
-					session.wurstCreativeFlight.processDecay()
+					for (module in session.violationCounterModules) {
+						module.processDecay()
+					}
 				}
 
 				delayTicks(1L)
