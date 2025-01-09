@@ -86,6 +86,9 @@ class DiscordListener(val m: PantufaBot) : ListenerAdapter() {
 
 	override fun onGuildBan(event: GuildBanEvent) {
 		m.launch {
+			if (event.guild.idLong != m.config.sparklyPower.guild.idLong)
+				return@launch
+
 			val bannedSparklyUser = m.getDiscordAccountFromUser(event.user) ?: return@launch
 			if (!bannedSparklyUser.isConnected)
 				return@launch
