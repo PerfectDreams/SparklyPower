@@ -203,7 +203,7 @@ class Quiz(val m: DreamQuiz) : ServerEvent("Quiz", "") {
                         wonAt
                     )
 
-                    Cash.giveCash(it, 1, TransactionContext(type = TransactionType.EVENTS, extra = "Quiz"))
+                    Cash.giveCash(it, 2, TransactionContext(type = TransactionType.EVENTS, extra = "Quiz"))
                 }
             }
         }
