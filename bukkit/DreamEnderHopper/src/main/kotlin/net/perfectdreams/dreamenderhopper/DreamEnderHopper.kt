@@ -40,16 +40,15 @@ class DreamEnderHopper : KotlinPlugin(), Listener {
 					"enderhopper",
 					createEnderHopper(),
 					listOf(
-						"RER",
-						"RHR",
-						"DRD"
+						"IEI",
+						"IHI",
+						"DID"
 					)
 				) {
-					it.setIngredient('D', Material.DIAMOND_BLOCK)
+					it.setIngredient('D', Material.DIAMOND)
 					it.setIngredient('H', Material.HOPPER)
 					it.setIngredient('E', Material.ENDER_EYE)
-					// TODO: Filter
-					it.setIngredient('R', Material.PRISMARINE_SHARD)
+					it.setIngredient('I', Material.IRON_INGOT)
 				}
 			)
 		)
