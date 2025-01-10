@@ -298,11 +298,12 @@ class DreamXizum : KotlinPlugin() {
 
                 if (newMode != null) {
                     launchMainThread {
+                        val battle = XizumBattle(this@DreamXizum, arena, newMode, playerRequest.player, otherRequest.player)
+                        activeBattles.add(battle)
+
                         delayTicks(40L)
 
-                        val battle = XizumBattle(this@DreamXizum, arena, newMode, playerRequest.player, otherRequest.player)
                         battle.start()
-                        activeBattles.add(battle)
                         queue.removeAll(setOf(playerRequest, otherRequest))
                     }
                 }
