@@ -58,16 +58,16 @@ class XizumBattle(
     val playerPosition = arena.playerPos ?: error("player position is null on arena '${arena.data.arenaName}'!")
     val opponentPosition = arena.opponentPos ?: error("opponent position is null on arena '${arena.data.arenaName}'!")
 
+    fun preStart() {
+        arena.inUse = true
+    }
+
     fun start() {
         if (mode is Listener) {
             m.registerEvents(mode)
         }
 
         val asPair = Pair(player, opponent)
-
-        m.arenas.firstOrNull { it.data.arenaName == arena.data.arenaName }?.let {
-            it.inUse = true
-        }
 
         announceToAllPlayersInXizumWorld(textComponent {
             append(DreamXizum.prefix())
@@ -385,7 +385,15 @@ class XizumBattle(
                 m.activeBattles.remove(this@XizumBattle)
 
                 updatePlayerStatus(winner, true)
-                winner.teleportToServerSpawnWithEffectsAwait()
+
+                val loc = m.config.spectatorPos?.toBukkitLocation(m.arenas.first().data.worldName)
+
+                if (loc == null) {
+                    winner.teleportToServerSpawnWithEffectsAwait()
+                } else {
+                    winner.teleport(loc)
+                }
+
                 m.arenas.first { it.data.arenaName == arena.data.arenaName }.let {
                     it.inUse = false
                 }

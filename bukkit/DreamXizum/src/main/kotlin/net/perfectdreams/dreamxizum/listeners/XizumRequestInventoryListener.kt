@@ -103,7 +103,7 @@ class XizumRequestInventoryListener(val m: DreamXizum) : Listener {
             } else {
                 m.queue.remove(request)
 
-                val newRequest = XizumBattleRequest(e.whoClicked as Player, mode = createModeInstance(mode))
+                val newRequest = XizumBattleRequest(e.whoClicked as Player, mode = createModeInstance(mode), processed = false)
 
                 m.queue.add(newRequest)
 
@@ -115,7 +115,7 @@ class XizumRequestInventoryListener(val m: DreamXizum) : Listener {
                 })
             }
         } else {
-            val newRequest = XizumBattleRequest(e.whoClicked as Player, mode = createModeInstance(mode))
+            val newRequest = XizumBattleRequest(e.whoClicked as Player, mode = createModeInstance(mode), processed = false)
 
             m.queue.add(newRequest)
 

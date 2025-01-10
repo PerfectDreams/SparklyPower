@@ -10,4 +10,5 @@ class XizumBattleRequest(
     val opponent: Player? = null,
     val mode: AbstractXizumBattleMode,
     val time: Long = System.currentTimeMillis(),
+    var processed: Boolean
 )

@@ -282,7 +282,8 @@ class XizumCustomRequestInventoryListener(val m: DreamXizum) : Listener {
         val newRequest = XizumBattleRequest(
             e.whoClicked as Player,
             target,
-            CustomXizumMode(playerItems, opponentItems, m)
+            CustomXizumMode(playerItems, opponentItems, m),
+            processed = false
         )
 
         m.queue.add(newRequest)

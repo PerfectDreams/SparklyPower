@@ -203,25 +203,27 @@ class DreamXizum : KotlinPlugin() {
     }
 
     private fun checkQueue(mode: XizumBattleMode) {
-        scheduler().schedule(this) {
+        launchMainThread {
             while (queue.isNotEmpty()) {
                 for (request in queue) {
-                    val duration = (System.currentTimeMillis() - request.time) / 1000
-                    val timeFormatted = String.format("%02d:%02d", (duration % 3600) / 60, duration % 60)
+                    if (!request.processed) {
+                        val duration = (System.currentTimeMillis() - request.time) / 1000
+                        val timeFormatted = String.format("%02d:%02d", (duration % 3600) / 60, duration % 60)
 
-                    request.player.sendActionBar(textComponent {
-                        append("Procurando um oponente...") {
-                            color(NamedTextColor.GOLD)
-                        }
-                        when (duration) {
-                            in 0..30 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.GREEN) }
-                            in 31..60 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.YELLOW) }
-                            else -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.RED) }
-                        }
-                    })
+                        request.player.sendActionBar(textComponent {
+                            append("Procurando um oponente...") {
+                                color(NamedTextColor.GOLD)
+                            }
+                            when (duration) {
+                                in 0..30 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.GREEN) }
+                                in 31..60 -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.YELLOW) }
+                                else -> append(" Tempo em fila: $timeFormatted") { color(NamedTextColor.RED) }
+                            }
+                        })
+                    }
                 }
 
-                waitFor(20)
+                delayTicks(20L)
             }
         }
 
@@ -251,6 +253,9 @@ class DreamXizum : KotlinPlugin() {
                 if (queue.size < 2) return
 
                 val (playerRequest, otherRequest) = findMatchRequests(mode) ?: return
+
+                if (playerRequest.processed || otherRequest.processed)
+                    return
 
                 // wait for 40 sticks (2 seconds) to make sure the player saw the title
 
@@ -297,10 +302,14 @@ class DreamXizum : KotlinPlugin() {
                 }
 
                 if (newMode != null) {
-                    launchMainThread {
-                        val battle = XizumBattle(this@DreamXizum, arena, newMode, playerRequest.player, otherRequest.player)
-                        activeBattles.add(battle)
+                    playerRequest.processed = true
+                    otherRequest.processed = true
 
+                    val battle = XizumBattle(this@DreamXizum, arena, newMode, playerRequest.player, otherRequest.player)
+                    activeBattles.add(battle)
+                    battle.preStart()
+
+                    launchMainThread {
                         delayTicks(40L)
 
                         battle.start()
