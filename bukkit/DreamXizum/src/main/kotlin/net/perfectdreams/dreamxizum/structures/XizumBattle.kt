@@ -372,7 +372,6 @@ class XizumBattle(
 
                         backItem = item
                     }
-
                 }
 
                 // If the player is dead, we can't teleport it somewhere else
@@ -443,7 +442,9 @@ class XizumBattle(
             it.inUse = false
         }
 
-        BattleListener.enderPearlCooldown.clear()
+        listOf(player, opponent).forEach {
+            BattleListener.enderPearlCooldown.remove(it.uniqueId)
+        }
 
         announceToAllPlayersInXizumWorld(textComponent {
             append(DreamXizum.prefix())

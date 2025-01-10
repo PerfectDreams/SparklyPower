@@ -265,8 +265,6 @@ class DreamXizum : KotlinPlugin() {
 
                     playerRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §7[${XizumRank.getTextByRating(otherPlayer.rating)}§7] §b${otherRequest.player.name}", 20, 40, 20)
                     otherRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §7[${XizumRank.getTextByRating(player.rating)}§7] §b${playerRequest.player.name}", 20, 40, 20)
-
-
                 } else {
                     playerRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §b${otherRequest.player.name}", 20, 40, 20)
                     otherRequest.player.sendTitle("§c§lPartida encontrada!", "§aSeu oponente é §b${playerRequest.player.name}", 20, 40, 20)
@@ -275,8 +273,6 @@ class DreamXizum : KotlinPlugin() {
                 listOf(playerRequest, otherRequest).forEach {
                     it.player.playSound(it.player.location, "entity.player.levelup", 1f, 1f)
                 }
-
-                queue.removeAll(setOf(playerRequest, otherRequest))
 
                 val arena = arenas.filter { !it.inUse && it.data.mode == mode }.randomOrNull() ?: return notifyNoArena(playerRequest, otherRequest)
 
@@ -307,6 +303,7 @@ class DreamXizum : KotlinPlugin() {
                         val battle = XizumBattle(this@DreamXizum, arena, newMode, playerRequest.player, otherRequest.player)
                         battle.start()
                         activeBattles.add(battle)
+                        queue.removeAll(setOf(playerRequest, otherRequest))
                     }
                 }
             }
