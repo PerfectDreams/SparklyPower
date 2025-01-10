@@ -93,6 +93,7 @@ class SparklyNeonVelocity @Inject constructor(
     val punishmentWebhook: WebhookClient
     val adminChatWebhook: WebhookClient
     val discordAccountAssociationsWebhook: WebhookClient
+    val survivalLogInWebhook: WebhookClient
     val lockedAdminChat = mutableSetOf<UUID>()
     var socketServer: SocketServer? = null
     val pudding: Pudding
@@ -104,6 +105,7 @@ class SparklyNeonVelocity @Inject constructor(
         punishmentWebhook = WebhookClient.withUrl(config.discord.webhooks.punishmentWebhook)
         adminChatWebhook = WebhookClient.withUrl(config.discord.webhooks.adminChatWebhook)
         discordAccountAssociationsWebhook = WebhookClient.withUrl(config.discord.webhooks.discordAccountAssociationsWebhook)
+        survivalLogInWebhook = WebhookClient.withUrl(config.discord.webhooks.survivalLogInWebhook)
     }
 
     @Subscribe
@@ -157,7 +159,8 @@ class SparklyNeonVelocity @Inject constructor(
                     GeoLocalizations,
                     ConnectionLogEntries,
                     PremiumUsers,
-                    BlockedASNs
+                    BlockedASNs,
+                    WhitelistedIps
                 )
             }
         }
@@ -168,6 +171,7 @@ class SparklyNeonVelocity @Inject constructor(
         server.eventManager.register(this, ChatListener(this))
 
         registerCommand(server, PremiumCommand(this))
+        registerCommand(server, WhitelistIpCommand(this, this.server))
         registerCommand(server, AdminChatCommand(this, this.server))
         registerCommand(server, AdvancedDupeIpCommand(this, this.server))
         registerCommand(server, BanCommand(this, this.server))

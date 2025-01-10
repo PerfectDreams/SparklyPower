@@ -26,7 +26,8 @@ data class SparklyNeonVelocityConfig(
         data class DiscordWebhooks(
             val punishmentWebhook: String,
             val adminChatWebhook: String,
-            val discordAccountAssociationsWebhook: String
+            val discordAccountAssociationsWebhook: String,
+            val survivalLogInWebhook: String
         )
     }
 }

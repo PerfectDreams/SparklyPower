@@ -12,9 +12,9 @@ import net.sparklypower.common.utils.TextUtils
 import net.sparklypower.common.utils.adventure.TextComponent
 import net.sparklypower.common.utils.toLegacySection
 import net.sparklypower.sparklyneonvelocity.SparklyNeonVelocity
+import net.sparklypower.sparklyneonvelocity.utils.DreamUtils
 import java.time.DayOfWeek
 import java.time.Instant
-import java.time.ZoneId
 import java.util.*
 
 class PingListener(private val m: SparklyNeonVelocity, private val server: ProxyServer) {
@@ -49,7 +49,7 @@ class PingListener(private val m: SparklyNeonVelocity, private val server: Proxy
         m.logger.info { "Pinged by ${event.connection.remoteAddress.hostString}, adding to the pinged by addresses list..." }
         m.pingedByAddresses.add(event.connection.remoteAddress.hostString)
 
-        val now = Instant.now().atZone(ZoneId.of("America/Sao_Paulo"))
+        val now = Instant.now().atZone(DreamUtils.serverZoneId)
         val currentDayOfTheWeek = now.dayOfWeek
         val year = now.year
 
