@@ -446,6 +446,13 @@ class XizumBattle(
         started = false
         ended = true
 
+        val allPlayers = Bukkit.getOnlinePlayers().toMutableList().filter { it != player && it != opponent }
+
+        allPlayers.forEach {
+            player.hidePlayer(m, it)
+            opponent.hidePlayer(m, it)
+        }
+
         m.arenas.first { it.data.arenaName == arena.data.arenaName }.let {
             it.inUse = false
         }
