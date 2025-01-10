@@ -18,7 +18,7 @@ class WurstNoFallListener(private val m: DreamReflections) : Listener {
         if (packet is ServerboundClientTickEndPacket)
             return
 
-        val session = m.getActiveReflectionSession(e.player) ?: return
+        val session = m.getActiveReflectionSessionIfNotBedrockClient(e.player) ?: return
 
         // Wurst always sends the StatusOnly move packet first with the "onGround=true"
         if (packet is ServerboundMovePlayerPacket.StatusOnly) {

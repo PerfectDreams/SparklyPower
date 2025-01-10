@@ -14,7 +14,7 @@ class LBNoFallHopliteListener(private val m: DreamReflections) : Listener {
         val packet = e.packet
 
         if (packet is ServerboundMovePlayerPacket) {
-            val session = m.getActiveReflectionSession(e.player) ?: return
+            val session = m.getActiveReflectionSessionIfNotBedrockClient(e.player) ?: return
 
             val previousMovePacket = session.lbNoFallHoplite.previousMovePacket
             if (previousMovePacket != null) {

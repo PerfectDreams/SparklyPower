@@ -44,6 +44,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.jetbrains.exposed.sql.not
 import java.awt.Color
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -228,6 +229,16 @@ class DreamReflections : KotlinPlugin(), Listener {
 		return this.activeReflectionSessions[player]
 	}
 
+	/**
+	 * Gets the current active reflection session
+	 */
+	fun getActiveReflectionSessionIfNotBedrockClient(player: Player): ReflectionSession? {
+		if (player.isBedrockClient)
+			return null
+
+		return this.activeReflectionSessions[player]
+	}
+
 	fun notifyStaff(component: TextComponent) {
 		val notify = Bukkit.getOnlinePlayers().filter { it.hasPermission("dreamreflections.notify") }
 		notify.forEach {
@@ -272,6 +283,10 @@ class DreamReflections : KotlinPlugin(), Listener {
 									.setAuthor(WebhookEmbed.EmbedAuthor(player.name, null, null))
 									.setTitle(WebhookEmbed.EmbedTitle("${notification.module.moduleName} (${notification.module.violations}x)", null))
 									.setThumbnailUrl("https://sparklypower.net/api/v1/render/avatar?name=${player.name}&scale=16")
+									.apply {
+										if (notification.module.explanation != null)
+											setDescription(notification.module.explanation)
+									}
 									.addField(WebhookEmbed.EmbedField(false, "Localização", worldXyz))
 									.addField(WebhookEmbed.EmbedField(false, "Client", "`$version` (`${player.clientBrandName}`)"))
 									.addField(WebhookEmbed.EmbedField(false, "TPS", tpsNow))

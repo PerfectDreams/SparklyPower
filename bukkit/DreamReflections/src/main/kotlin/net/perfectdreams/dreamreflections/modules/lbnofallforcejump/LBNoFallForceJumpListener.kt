@@ -14,7 +14,7 @@ class LBNoFallForceJumpListener(private val m: DreamReflections) : Listener {
     @EventHandler
     fun onJump(e: PlayerJumpEvent) {
         if (e.player.fallDistance >= e.player.getAttribute(Attribute.SAFE_FALL_DISTANCE)!!.value) {
-            val session = m.getActiveReflectionSession(e.player) ?: return
+            val session = m.getActiveReflectionSessionIfNotBedrockClient(e.player) ?: return
             session.lbNoFallForceJump.increaseViolationLevel()
             e.isCancelled = true
         }

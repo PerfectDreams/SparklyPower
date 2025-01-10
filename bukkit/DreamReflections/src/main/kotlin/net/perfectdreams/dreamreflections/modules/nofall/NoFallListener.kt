@@ -79,7 +79,7 @@ class NoFallListener(private val m: DreamReflections) : Listener {
         // We don't need to check the fall distance, but if the value is wrong AND they were going to take fall damage, then it means that the client is probably lying!
         if (clientSideIsOnGround && !isBeingSupported && e.player.fallDistance >= e.player.getAttribute(Attribute.SAFE_FALL_DISTANCE)!!.value) {
             // Uuhh, we got mismatched onGround input! This may be NoFall!
-            val session = m.getActiveReflectionSession(e.player) ?: return
+            val session = m.getActiveReflectionSessionIfNotBedrockClient(e.player) ?: return
             session.noFall.increaseViolationLevel()
         }
     }

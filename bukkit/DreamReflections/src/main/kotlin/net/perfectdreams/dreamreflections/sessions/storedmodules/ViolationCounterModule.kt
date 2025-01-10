@@ -7,6 +7,7 @@ import net.perfectdreams.dreamreflections.sessions.ReflectionSession
 abstract class ViolationCounterModule(
     val session: ReflectionSession,
     val moduleName: String,
+    val explanation: String?,
     val requiresMainThread: Boolean,
     val requiredViolationsUntilWarning: Int,
     val decayAfterTicks: Int = 300,
