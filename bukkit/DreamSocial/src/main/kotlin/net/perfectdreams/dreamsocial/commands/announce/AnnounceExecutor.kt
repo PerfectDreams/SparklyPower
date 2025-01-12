@@ -36,6 +36,10 @@ class AnnounceExecutor(private val plugin: DreamSocial, private val dreamChat: D
         val player = context.requirePlayer()
         val currentTimestamp = System.currentTimeMillis()
 
+        if (DreamChat.mutedUsers.contains(player.name)) {
+            context.fail("Você está mutado e, portanto, não pode anunciar nada!")
+        }
+
         cooldowns[player]?.let {
             val humanizedTime = TimeUtils.convertEpochMillisToAbbreviatedTime(it - currentTimestamp).ifEmpty { "um pouquinho" }
             context.fail(HAS_RECENTLY_ANNOUNCED.format(humanizedTime).asComponent.color(RED_COLOR))
