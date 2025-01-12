@@ -272,12 +272,12 @@ class XizumBattle(
             var loserProfile: XizumProfile? = null
 
             transaction(Databases.databaseNetwork) {
+                val winnerDb = XizumProfile.findOrCreate(winner.uniqueId)
+                val loserDb = XizumProfile.findOrCreate(loser.uniqueId)
+
+                loserProfile = loserDb
+
                 if (mode.enum !in listOf(XizumBattleMode.CUSTOM, XizumBattleMode.STANDARD)) {
-                    val winnerDb = XizumProfile.findOrCreate(winner.uniqueId)
-                    val loserDb = XizumProfile.findOrCreate(loser.uniqueId)
-
-                    loserProfile = loserDb
-
                     XizumMatchesResults.insert {
                         it[XizumMatchesResults.arenaName] = arena.data.arenaName
                         it[XizumMatchesResults.arenaMode] = arena.data.mode!!.name // Should NEVER be null!
