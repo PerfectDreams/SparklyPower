@@ -352,6 +352,8 @@ class LoginListener(val m: SparklyNeonVelocity, val server: ProxyServer) {
                         appendLine("<:pantufa_megaphone:997669904633299014> **|** **Tentou entrar estando banido!**")
                         appendLine()
                         appendLine("<:pantufa_reading:853048447169986590> **|** `${event.player.username}`/`${playerIp}` (`${event.player.uniqueId}`)")
+                        appendLine()
+                        appendLine("~~ㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤ~~")
                     }
 
                     m.survivalLogInWebhook.send(message)
@@ -387,6 +389,8 @@ class LoginListener(val m: SparklyNeonVelocity, val server: ProxyServer) {
                         appendLine("<:pantufa_megaphone:997669904633299014> **|** **Tentou entrar estando com o IP banido!**")
                         appendLine()
                         appendLine("<:pantufa_reading:853048447169986590> **|** `${event.player.username}`/`${event.player.remoteAddress.hostString}` (`${event.player.uniqueId}`)")
+                        appendLine()
+                        appendLine("~~ㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤ~~")
                     }
 
                     m.survivalLogInWebhook.send(message)
