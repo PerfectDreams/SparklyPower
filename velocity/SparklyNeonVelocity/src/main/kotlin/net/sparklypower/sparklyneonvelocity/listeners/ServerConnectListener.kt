@@ -55,14 +55,16 @@ class ServerConnectListener(val m: SparklyNeonVelocity) {
                                 .distinct()
                         }
 
-                        val message = buildString {
-                            appendLine("<:pantufa_megaphone:997669904633299014> **|** **Uma conta suspeita entrou no servidor!** \uD83D\uDEA8")
-                            appendLine()
-                            appendLine("<:pantufa_reading:853048447169986590> **|** **Conta suspeita:**`${player.username}`/`${playerIp}` (`${player.uniqueId}`)")
-                            appendLine("<:pantufa_analise:853048446813470762> **|** **Contas banidas:** ${accounts.joinToString(", ") { "`$it`" }}")
-                        }
+                        if (accounts.isNotEmpty()) {
+                            val message = buildString {
+                                appendLine("<:pantufa_megaphone:997669904633299014> **|** **Uma conta suspeita entrou no servidor!** \uD83D\uDEA8")
+                                appendLine()
+                                appendLine("<:pantufa_reading:853048447169986590> **|** **Conta suspeita:**`${player.username}`/`${playerIp}` (`${player.uniqueId}`)")
+                                appendLine("<:pantufa_analise:853048446813470762> **|** **Contas banidas:** ${accounts.joinToString(", ") { "`$it`" }}")
+                            }
 
-                        m.survivalLogInWebhook.send(message)
+                            m.survivalLogInWebhook.send(message)
+                        }
                     }
                 }
             }
