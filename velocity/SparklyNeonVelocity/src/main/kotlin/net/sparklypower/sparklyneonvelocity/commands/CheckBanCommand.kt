@@ -1,26 +1,23 @@
 package net.sparklypower.sparklyneonvelocity.commands
 
-import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.proxy.ProxyServer
 import net.sparklypower.common.utils.fromLegacySectionToTextComponent
 import net.sparklypower.sparklyneonvelocity.PunishmentManager
 import net.sparklypower.sparklyneonvelocity.SparklyNeonVelocity
-import net.sparklypower.sparklyneonvelocity.commands.AdvancedDupeIpCommand.AdvancedDupeIpExecutor
 import net.sparklypower.sparklyneonvelocity.dao.Ban
 import net.sparklypower.sparklyneonvelocity.dao.Warn
 import net.sparklypower.sparklyneonvelocity.tables.Bans
 import net.sparklypower.sparklyneonvelocity.tables.Warns
+import net.sparklypower.sparklyneonvelocity.utils.DreamUtils
 import net.sparklypower.sparklyneonvelocity.utils.prettyBoolean
 import net.sparklypower.sparklyvelocitycore.utils.commands.context.CommandArguments
 import net.sparklypower.sparklyvelocitycore.utils.commands.context.CommandContext
-import net.sparklypower.sparklyvelocitycore.utils.commands.declarations.SparklyCommandDeclaration
 import net.sparklypower.sparklyvelocitycore.utils.commands.declarations.SparklyCommandDeclarationWrapper
 import net.sparklypower.sparklyvelocitycore.utils.commands.declarations.sparklyCommand
 import net.sparklypower.sparklyvelocitycore.utils.commands.executors.SparklyCommandExecutor
 import net.sparklypower.sparklyvelocitycore.utils.commands.options.CommandOptions
 import net.sparklypower.sparklyvelocitycore.utils.commands.options.buildSuggestionsBlockFromList
 import java.time.Instant
-import java.time.ZoneId
 import java.util.*
 
 class CheckBanCommand(private val m: SparklyNeonVelocity, private val server: ProxyServer) : SparklyCommandDeclarationWrapper {
@@ -73,7 +70,7 @@ class CheckBanCommand(private val m: SparklyNeonVelocity, private val server: Pr
                     context.sendMessage("§eBans anteriores:".fromLegacySectionToTextComponent())
                     allBans.forEach {
                         val instant = Instant.ofEpochMilli(it.punishedAt)
-                            .atZone(ZoneId.of("America/Sao_Paulo"))
+                            .atZone(DreamUtils.serverZoneId)
                             .toOffsetDateTime()
 
                         val day = instant.dayOfMonth.toString().padStart(2, '0')
@@ -93,7 +90,7 @@ class CheckBanCommand(private val m: SparklyNeonVelocity, private val server: Pr
                 context.sendMessage("§eNúmero de avisos (${validWarns.size} avisos válidos):".fromLegacySectionToTextComponent())
                 for (invalidWarn in invalidWarns) {
                     val instant = Instant.ofEpochMilli(invalidWarn.punishedAt)
-                        .atZone(ZoneId.of("America/Sao_Paulo"))
+                        .atZone(DreamUtils.serverZoneId)
                         .toOffsetDateTime()
 
                     val day = instant.dayOfMonth.toString().padStart(2, '0')
@@ -107,7 +104,7 @@ class CheckBanCommand(private val m: SparklyNeonVelocity, private val server: Pr
                 }
                 for (validWarn in validWarns) {
                     val instant = Instant.ofEpochMilli(validWarn.punishedAt)
-                        .atZone(ZoneId.of("America/Sao_Paulo"))
+                        .atZone(DreamUtils.serverZoneId)
                         .toOffsetDateTime()
 
                     val day = instant.dayOfMonth.toString().padStart(2, '0')

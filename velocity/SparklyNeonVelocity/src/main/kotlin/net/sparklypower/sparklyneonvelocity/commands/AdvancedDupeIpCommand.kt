@@ -7,6 +7,7 @@ import net.sparklypower.sparklyneonvelocity.SparklyNeonVelocity
 import net.sparklypower.sparklyneonvelocity.dao.ConnectionLogEntry
 import net.sparklypower.sparklyneonvelocity.dao.User
 import net.sparklypower.sparklyneonvelocity.tables.ConnectionLogEntries
+import net.sparklypower.sparklyneonvelocity.utils.DreamUtils
 import net.sparklypower.sparklyvelocitycore.utils.commands.context.CommandArguments
 import net.sparklypower.sparklyvelocitycore.utils.commands.context.CommandContext
 import net.sparklypower.sparklyvelocitycore.utils.commands.declarations.SparklyCommandDeclarationWrapper
@@ -15,7 +16,6 @@ import net.sparklypower.sparklyvelocitycore.utils.commands.executors.SparklyComm
 import net.sparklypower.sparklyvelocitycore.utils.commands.options.CommandOptions
 import net.sparklypower.sparklyvelocitycore.utils.commands.options.buildSuggestionsBlockFromList
 import java.time.Instant
-import java.time.ZoneId
 import java.util.*
 
 class AdvancedDupeIpCommand(val m: SparklyNeonVelocity, val server: ProxyServer) : SparklyCommandDeclarationWrapper {
@@ -85,7 +85,7 @@ class AdvancedDupeIpCommand(val m: SparklyNeonVelocity, val server: ProxyServer)
                 }
 
                 val instant = Instant.ofEpochMilli(connection.connectedAt)
-                val instantAtZone = instant.atZone(ZoneId.systemDefault())
+                val instantAtZone = instant.atZone(DreamUtils.serverZoneId)
                 val hour = instantAtZone.hour.toString().padStart(2, '0')
                 val minute = instantAtZone.minute.toString().padStart(2, '0')
                 val second = instantAtZone.second.toString().padStart(2, '0')

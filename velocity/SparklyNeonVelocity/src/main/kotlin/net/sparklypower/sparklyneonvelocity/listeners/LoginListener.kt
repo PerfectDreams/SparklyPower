@@ -32,11 +32,8 @@ import net.sparklypower.sparklyneonvelocity.utils.ASNManager
 import net.sparklypower.sparklyneonvelocity.utils.DreamNetwork
 import net.sparklypower.sparklyneonvelocity.utils.GeoUtils
 import net.sparklypower.sparklyneonvelocity.utils.LoginConnectionStatus
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.lang.reflect.Field
 import java.util.*
@@ -350,6 +347,17 @@ class LoginListener(val m: SparklyNeonVelocity, val server: ProxyServer) {
                             "§3Quer tentar uma segunda chance? Acesse o link, leia e preencha com atenção: §6bit.ly/sparklypower-unban"}
 						""".trimIndent().fromLegacySectionToTextComponent()
                     )
+
+                    val message = buildString {
+                        appendLine("<:pantufa_megaphone:997669904633299014> **|** **Tentou entrar estando banido!**")
+                        appendLine()
+                        appendLine("<:pantufa_reading:853048447169986590> **|** `${event.player.username}`/`${playerIp}` (`${event.player.uniqueId}`)")
+                        appendLine()
+                        appendLine("~~ㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤ~~")
+                    }
+
+                    m.survivalLogInWebhook.send(message)
+
                     addToConnectionLog(event, LoginConnectionStatus.BANNED)
                     continuation.resume()
                     return@launch
@@ -376,6 +384,17 @@ class LoginListener(val m: SparklyNeonVelocity, val server: ProxyServer) {
                             "§3Quer tentar uma segunda chance? Acesse o link, leia e preencha com atenção: §6bit.ly/sparklypower-unban"}
 						""".trimIndent().trimIndent().fromLegacySectionToTextComponent()
                     )
+
+                    val message = buildString {
+                        appendLine("<:pantufa_megaphone:997669904633299014> **|** **Tentou entrar estando com o IP banido!**")
+                        appendLine()
+                        appendLine("<:pantufa_reading:853048447169986590> **|** `${event.player.username}`/`${event.player.remoteAddress.hostString}` (`${event.player.uniqueId}`)")
+                        appendLine()
+                        appendLine("~~ㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤ~~")
+                    }
+
+                    m.survivalLogInWebhook.send(message)
+
                     addToConnectionLog(event, LoginConnectionStatus.IP_BANNED)
                     continuation.resume()
                     return@launch

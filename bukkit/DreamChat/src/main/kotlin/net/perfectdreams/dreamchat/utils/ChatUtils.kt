@@ -43,7 +43,7 @@ object ChatUtils {
 
 				val isIgnoringTheSender = DreamChat.INSTANCE.userData.getStringList("ignore.${player.uniqueId}").contains(sender.uniqueId.toString())
 
-				if (!isIgnoringTheSender) {
+				if (!isIgnoringTheSender || !DreamChat.mutedUsers.contains(sender.name)) {
 					player.playSound(player.location, "perfectdreams.sfx.msn", 1F, 1F)
 					player.sendActionBar("§3${sender.displayName}§a te mencionou no chat!")
 				}
