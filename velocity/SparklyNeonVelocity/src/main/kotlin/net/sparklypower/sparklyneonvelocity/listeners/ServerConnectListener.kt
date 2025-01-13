@@ -2,11 +2,15 @@ package net.sparklypower.sparklyneonvelocity.listeners
 
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.player.ServerPreConnectEvent
+import net.kyori.adventure.text.format.NamedTextColor
+import net.sparklypower.common.utils.adventure.TextComponent
+import net.sparklypower.common.utils.adventure.appendCommand
 import net.sparklypower.sparklyneonvelocity.SparklyNeonVelocity
 import net.sparklypower.sparklyneonvelocity.dao.ConnectionLogEntry
 import net.sparklypower.sparklyneonvelocity.dao.User
 import net.sparklypower.sparklyneonvelocity.tables.Bans
 import net.sparklypower.sparklyneonvelocity.tables.ConnectionLogEntries
+import net.sparklypower.sparklyneonvelocity.tables.DiscordAccounts
 import net.sparklypower.sparklyneonvelocity.tables.WhitelistedIps
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
@@ -54,16 +58,38 @@ class ServerConnectListener(val m: SparklyNeonVelocity) {
                         }
 
                         if (suspectAccounts.isNotEmpty()) {
+                            val connectedDiscordAccount = m.pudding.transactionBlocking {
+                                DiscordAccounts.selectAll().where {
+                                    DiscordAccounts.minecraftId eq player.uniqueId and (DiscordAccounts.isConnected eq true)
+                                }.firstOrNull()
+                            }
+
                             val message = buildString {
                                 appendLine("<:pantufa_megaphone:997669904633299014> **|** **Uma conta suspeita entrou no servidor!** \uD83D\uDEA8")
                                 appendLine()
                                 appendLine("<:pantufa_reading:853048447169986590> **|** **Conta suspeita:**`${player.username}`/`${playerIp}` (`${player.uniqueId}`)")
                                 appendLine("<:pantufa_analise:853048446813470762> **|** **Contas banidas:** ${suspectAccounts.joinToString(", ") { "`$it`" }}")
+                                if (connectedDiscordAccount != null) {
+                                    appendLine("<:pantufa_coffee:853048446981111828> **|** A conta foi **permitida**, pois a pessoa tem uma conta no Discord conectada: <@${connectedDiscordAccount[DiscordAccounts.discordId]}> (${connectedDiscordAccount[DiscordAccounts.discordId]})")
+                                } else {
+                                    appendLine("<:pantufa_bonk:1028160322990776331> **|** A conta foi **bloqueada**, pois a pessoa não tem uma conta no Discord conectada!")
+                                }
                                 appendLine()
                                 appendLine("~~ㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤ~~")
                             }
 
                             m.survivalLogInWebhook.send(message)
+
+                            if (connectedDiscordAccount == null) {
+                                e.player.sendMessage(
+                                    TextComponent {
+                                        color(NamedTextColor.RED)
+                                        content("Você precisa conectar a sua conta do Discord com a sua conta do SparklyPower antes de poder entrar no SparklyPower Survival! Para entrar no nosso servidor no Discord, use ")
+                                        appendCommand("/discord")
+                                    }
+                                )
+                                e.result = ServerPreConnectEvent.ServerResult.denied()
+                            }
                         }
                     }
                 }

@@ -1,5 +1,10 @@
 package net.sparklypower.sparklyneonvelocity.commands
 
+import net.kyori.adventure.text.event.ClickEvent
+import net.kyori.adventure.text.format.NamedTextColor
+import net.sparklypower.common.utils.adventure.TextComponent
+import net.sparklypower.common.utils.adventure.appendCommand
+import net.sparklypower.common.utils.adventure.appendTextComponent
 import net.sparklypower.common.utils.fromLegacySectionToTextComponent
 import net.sparklypower.sparklyneonvelocity.SparklyNeonVelocity
 import net.sparklypower.sparklyneonvelocity.dao.DiscordAccount
@@ -83,7 +88,35 @@ class DiscordCommand(private val m: SparklyNeonVelocity) : SparklyCommandDeclara
 
     class DiscordExecutor(private val m: SparklyNeonVelocity) : SparklyCommandExecutor() {
         override fun execute(context: CommandContext, args: CommandArguments) {
-            context.sendMessage("§dNosso Discord! https://discord.gg/JYN6g2s".fromLegacySectionToTextComponent())
+            context.sendMessage(
+                TextComponent {
+                    appendTextComponent {
+                        color(NamedTextColor.YELLOW)
+                        content("Nosso Discord!")
+                    }
+
+                    appendTextComponent {
+                        content(" ")
+                    }
+
+                    appendTextComponent {
+                        content("https://discord.gg/sparklypower")
+                        clickEvent(ClickEvent.openUrl("https://discord.gg/sparklypower"))
+                    }
+
+                    appendNewline()
+                    appendTextComponent {
+                        color(NamedTextColor.YELLOW)
+                        appendTextComponent {
+                            content("Se você quer conectar a sua conta do SparklyPower no Discord, use ")
+                        }
+                        appendCommand("/registrar")
+                        appendTextComponent {
+                            content("no nosso servidor no Discord, no bot Pantufa!")
+                        }
+                    }
+                }
+            )
         }
     }
 }
