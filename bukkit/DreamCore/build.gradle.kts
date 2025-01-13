@@ -80,6 +80,7 @@ dependencies {
     compileOnlyApi(files("../../libs/ViaVersion.jar")) // Used for packet manipulation
 
     implementation("com.github.luben:zstd-jni:1.5.5-7")
+    api("org.dyn4j:dyn4j:5.0.2")
 
     compileOnlyApi("me.lucko.luckperms:luckperms-api:4.3")
     // testCompileOnly(files("../../libs/paper_server.jar"))
