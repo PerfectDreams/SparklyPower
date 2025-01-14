@@ -6,7 +6,7 @@ plugins {
 }
 
 dependencies {
-    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.3-R0.1-SNAPSHOT")
+    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.4-R0.1-SNAPSHOT")
     compileOnly(project(":bukkit:DreamCore"))
     implementation("net.citizensnpcs:citizensapi:2.0.30-SNAPSHOT")
     compileOnly(project(":bukkit:DreamBedrockIntegrations"))

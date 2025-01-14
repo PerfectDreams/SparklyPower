@@ -19,6 +19,7 @@ import net.perfectdreams.dreamloja.tables.VoteSigns
 import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.FireworkEffect
+import org.bukkit.Statistic
 import org.bukkit.block.Sign
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -224,6 +225,18 @@ class SignListener(val m: DreamLoja) : Listener {
                         append(DreamLoja.PREFIX)
                         append(" ")
                         append("Você tem que esperar ${DateUtils.formatDateDiff(shopVote.receivedAt + 300_000L)} antes de tirar o seu voto! Que tal conversar com o proprietário da loja para ver se vocês resolvem as suas diferenças?")
+                    }
+                    return@launchAsyncThread
+                }
+
+                // YES, THIS IS TICKS PLAYED
+                val ticksPlayed = e.player.getStatistic(Statistic.PLAY_ONE_MINUTE)
+                if (144_000 > ticksPlayed) {
+                    e.player.sendTextComponent {
+                        color(NamedTextColor.RED)
+                        append(DreamLoja.PREFIX)
+                        append(" ")
+                        append("Você só pode votar na loja de um player após ter jogado no SparklyPower por mais de 2 horas!")
                     }
                     return@launchAsyncThread
                 }

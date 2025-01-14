@@ -11,7 +11,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.3-R0.1-SNAPSHOT")
+    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.4-R0.1-SNAPSHOT")
     compileOnly(project(":bukkit:DreamCore"))
     compileOnly("com.comphenix.protocol:ProtocolLib:4.8.0")
     compileOnly(files("../../libs/ChestShop.jar"))

@@ -2,7 +2,6 @@ package net.perfectdreams.dreamemotes
 
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
 import net.perfectdreams.dreambedrockintegrations.utils.isBedrockClient
 import net.perfectdreams.dreamcore.utils.Databases
@@ -12,23 +11,21 @@ import net.perfectdreams.dreamcore.utils.extensions.hidePlayerWithoutRemovingFro
 import net.perfectdreams.dreamcore.utils.packetevents.ServerboundPacketReceiveEvent
 import net.perfectdreams.dreamcore.utils.registerEvents
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
-import net.perfectdreams.dreamemotes.blockbench.BlockbenchModel
-import net.perfectdreams.dreamemotes.commands.*
+import net.perfectdreams.dreamemotes.commands.DreamEmotesCommand
+import net.perfectdreams.dreamemotes.commands.GestureCommand
+import net.perfectdreams.dreamemotes.commands.TestGestureCommand
 import net.perfectdreams.dreamemotes.config.DreamEmotesConfig
 import net.perfectdreams.dreamemotes.gestures.PlayerGesturePlayback
-import net.perfectdreams.dreamemotes.gestures.SparklyGesturesRegistry
 import net.perfectdreams.dreamemotes.gestures.SparklyGesturesManager
+import net.perfectdreams.dreamemotes.gestures.SparklyGesturesRegistry
 import net.perfectdreams.dreamemotes.tables.CachedGestureSkinHeads
 import org.bukkit.entity.Player
+import org.bukkit.entity.TextDisplay
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.PlayerDeathEvent
-import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.event.player.PlayerMoveEvent
-import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.event.player.PlayerTeleportEvent
-import org.bukkit.event.player.PlayerToggleSneakEvent
+import org.bukkit.event.player.*
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
@@ -40,6 +37,7 @@ class DreamEmotes : KotlinPlugin(), Listener {
 	val gesturesFolder = File(this.dataFolder, "gestures")
 	val modelsFolder = File(this.dataFolder, "models")
 	val orbitalCameras = mutableMapOf<Player, OrbitalCamera>()
+	val drones = mutableMapOf<Player, TextDisplay>()
 	val gesturesManager = SparklyGesturesManager(this)
 	lateinit var config: DreamEmotesConfig
 	val defaultSkin = ImageIO.read(File(this.dataFolder, "steve.png"))

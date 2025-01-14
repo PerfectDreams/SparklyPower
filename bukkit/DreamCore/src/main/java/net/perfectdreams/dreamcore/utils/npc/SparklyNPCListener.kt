@@ -171,17 +171,16 @@ class SparklyNPCListener(val m: SparklyNPCManager) : Listener {
                             newSubPackets.add(
                                 ClientboundPlayerInfoUpdatePacket(
                                     EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER),
-                                    listOf(
-                                        ClientboundPlayerInfoUpdatePacket.Entry(
-                                            gp.id,
-                                            gp,
-                                            false,
-                                            0,
-                                            GameType.DEFAULT_MODE,
-                                            null,
-                                            0,
-                                            null
-                                        )
+                                    ClientboundPlayerInfoUpdatePacket.Entry(
+                                        gp.id,
+                                        gp,
+                                        false,
+                                        0,
+                                        GameType.DEFAULT_MODE,
+                                        null,
+                                        true,
+                                        0,
+                                        null
                                     )
                                 )
                             )

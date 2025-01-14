@@ -14,7 +14,7 @@ kotlin {
 
 dependencies {
     api(kotlin("stdlib"))
-    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.3-R0.1-SNAPSHOT")
+    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.4-R0.1-SNAPSHOT")
     compileOnly("io.github.waterfallmc:waterfall-api:1.13-SNAPSHOT")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.6.0")

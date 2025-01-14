@@ -6,7 +6,7 @@ plugins {
 }
 
 dependencies {
-    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.3-R0.1-SNAPSHOT")
+    paperweight.devBundle("net.sparklypower.sparklypaper", "1.21.4-R0.1-SNAPSHOT")
     implementation(kotlin("stdlib-jdk8"))
     implementation(files("../../libs/paper_server.jar"))
     implementation(files("../../libs/DreamCore-shadow.jar"))

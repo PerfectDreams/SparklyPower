@@ -393,6 +393,7 @@ class CustomBlocksListener(
                             newState
                         ),
                         msg.isOverrideLimiter,
+                        msg.alwaysShow(),
                         msg.x,
                         msg.y,
                         msg.z,
@@ -407,19 +408,20 @@ class CustomBlocksListener(
                     val customBlock = CustomBlocks.getCustomBlockOfNMSState(state)
                     if (customBlock != null) {
                         event.packet = ClientboundLevelParticlesPacket(
-                                BlockParticleOption(
-                                    particleOptions.type,
-                                    if (isBedrockClient) customBlock.fallbackBlockStateNMS else customBlock.targetBlockStateNMS
-                                ),
-                                msg.isOverrideLimiter,
-                                msg.x,
-                                msg.y,
-                                msg.z,
-                                msg.xDist,
-                                msg.yDist,
-                                msg.zDist,
-                                msg.maxSpeed,
-                                msg.count
+                            BlockParticleOption(
+                                particleOptions.type,
+                                if (isBedrockClient) customBlock.fallbackBlockStateNMS else customBlock.targetBlockStateNMS
+                            ),
+                            msg.isOverrideLimiter,
+                            msg.alwaysShow(),
+                            msg.x,
+                            msg.y,
+                            msg.z,
+                            msg.xDist,
+                            msg.yDist,
+                            msg.zDist,
+                            msg.maxSpeed,
+                            msg.count
                         )
                     }
                     return

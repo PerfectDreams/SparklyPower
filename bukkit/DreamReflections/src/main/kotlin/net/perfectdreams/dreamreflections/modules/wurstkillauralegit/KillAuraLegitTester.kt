@@ -73,6 +73,7 @@ class KillAuraLegitTester(val session: ReflectionSession) {
                         0,
                         GameType.DEFAULT_MODE,
                         null,
+                        false,
                         0,
                         null
                     )
