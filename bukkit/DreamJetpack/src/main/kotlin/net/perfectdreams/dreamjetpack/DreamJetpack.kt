@@ -1,6 +1,9 @@
 package net.perfectdreams.dreamjetpack
 
 import com.okkero.skedule.schedule
+import io.papermc.paper.datacomponent.DataComponentTypes
+import io.papermc.paper.datacomponent.item.Equippable
+import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
 import net.perfectdreams.commands.annotation.Subcommand
@@ -27,6 +30,7 @@ import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.event.player.PlayerToggleSneakEvent
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
@@ -35,6 +39,7 @@ class DreamJetpack : KotlinPlugin(), Listener {
 		lateinit var INSTANCE: DreamJetpack
 		val PREFIX = "§8[§a§lJetpack§8]§e"
 		val IS_JETPACK_KEY = SparklyNamespacedBooleanKey("is_jetpack")
+		val jetpackChestplateAssetId = SparklyNamespacedKey("jetpack")
 	}
 
 	val flyingPlayers = mutableSetOf<Player>()
@@ -64,6 +69,9 @@ class DreamJetpack : KotlinPlugin(), Listener {
 			fun root(sender: Player) {
 				sender.inventory.addItem(
 					ItemStack(Material.CHAINMAIL_CHESTPLATE)
+						.apply {
+							setData(DataComponentTypes.EQUIPPABLE, Equippable.equippable(EquipmentSlot.CHEST).assetId(jetpackChestplateAssetId))
+						}
 						.meta<ItemMeta> {
 							displayNameWithoutDecorations {
 								color(NamedTextColor.GOLD)
@@ -348,8 +356,14 @@ class DreamJetpack : KotlinPlugin(), Listener {
 
 		if (chestplate.hasItemMeta()) {
 			val itemMeta = chestplate.itemMeta
-			if (itemMeta.persistentDataContainer.get(IS_JETPACK_KEY))
+			if (itemMeta.persistentDataContainer.get(IS_JETPACK_KEY)) {
+				// Migrate to new system if needed
+				val currentEquippable = chestplate.getData(DataComponentTypes.EQUIPPABLE)
+				if (currentEquippable?.assetId() != jetpackChestplateAssetId) {
+					chestplate.setData(DataComponentTypes.EQUIPPABLE, Equippable.equippable(EquipmentSlot.CHEST).assetId(jetpackChestplateAssetId))
+				}
 				return true
+			}
 
 			if (chestplate.itemMeta.displayName == "§6§lJetpack") {
 				itemMeta.persistentDataContainer.set(IS_JETPACK_KEY, true)
