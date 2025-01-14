@@ -37,7 +37,6 @@ class DreamEmotes : KotlinPlugin(), Listener {
 	val gesturesFolder = File(this.dataFolder, "gestures")
 	val modelsFolder = File(this.dataFolder, "models")
 	val orbitalCameras = mutableMapOf<Player, OrbitalCamera>()
-	val drones = mutableMapOf<Player, TextDisplay>()
 	val gesturesManager = SparklyGesturesManager(this)
 	lateinit var config: DreamEmotesConfig
 	val defaultSkin = ImageIO.read(File(this.dataFolder, "steve.png"))
