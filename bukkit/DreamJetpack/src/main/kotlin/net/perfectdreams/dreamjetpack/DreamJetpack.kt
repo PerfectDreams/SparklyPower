@@ -2,6 +2,7 @@ package net.perfectdreams.dreamjetpack
 
 import com.okkero.skedule.schedule
 import io.papermc.paper.datacomponent.DataComponentTypes
+import io.papermc.paper.datacomponent.item.CustomModelData
 import io.papermc.paper.datacomponent.item.Equippable
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.NamedTextColor
@@ -71,6 +72,7 @@ class DreamJetpack : KotlinPlugin(), Listener {
 					ItemStack(Material.CHAINMAIL_CHESTPLATE)
 						.apply {
 							setData(DataComponentTypes.EQUIPPABLE, Equippable.equippable(EquipmentSlot.CHEST).assetId(jetpackChestplateAssetId))
+							setData(DataComponentTypes.CUSTOM_MODEL_DATA, CustomModelData.customModelData().addFloat(1f))
 						}
 						.meta<ItemMeta> {
 							displayNameWithoutDecorations {
@@ -310,11 +312,6 @@ class DreamJetpack : KotlinPlugin(), Listener {
 				if (!e.player.allowFlight) {
 					val blacklistedWorlds = config.getStringList("blacklisted-worlds")
 
-					if (blacklistedWorlds.contains(e.player.world.name) || isInXizum(e.player)) {
-						e.player.sendMessage("$PREFIX §cVocê não pode voar aqui")
-						return
-					}
-
 					val jetpackCheckEvent = PlayerJetpackCheckEvent(e.player)
 					val success = jetpackCheckEvent.callEvent()
 					if (!success) {
@@ -361,6 +358,7 @@ class DreamJetpack : KotlinPlugin(), Listener {
 				val currentEquippable = chestplate.getData(DataComponentTypes.EQUIPPABLE)
 				if (currentEquippable?.assetId() != jetpackChestplateAssetId) {
 					chestplate.setData(DataComponentTypes.EQUIPPABLE, Equippable.equippable(EquipmentSlot.CHEST).assetId(jetpackChestplateAssetId))
+					chestplate.setData(DataComponentTypes.CUSTOM_MODEL_DATA, CustomModelData.customModelData().addFloat(1f))
 				}
 				return true
 			}
