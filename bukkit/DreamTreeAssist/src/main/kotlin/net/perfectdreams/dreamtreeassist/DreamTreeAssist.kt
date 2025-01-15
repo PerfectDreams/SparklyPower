@@ -1,6 +1,5 @@
 package net.perfectdreams.dreamtreeassist
 
-import kotlinx.coroutines.delay
 import me.ryanhamshire.GriefPrevention.GriefPrevention
 import net.perfectdreams.dreamcore.utils.KotlinPlugin
 import net.perfectdreams.dreamcore.utils.registerEvents
@@ -25,7 +24,8 @@ class DreamTreeAssist : KotlinPlugin(), Listener {
 			Material.BIRCH_SAPLING,
 			Material.OAK_SAPLING,
 			Material.JUNGLE_SAPLING,
-			Material.CHERRY_SAPLING
+			Material.CHERRY_SAPLING,
+			Material.PALE_OAK_SAPLING
 		)
 
 		val WORLDS = setOf(
