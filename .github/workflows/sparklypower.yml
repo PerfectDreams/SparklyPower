@@ -6,7 +6,7 @@ name: Build SparklyPower Plugins
 # events but only for the master branch
 on:
   push:
-    branches: [ master, 1.19.2-stuff, ver/1.20, ver/1.20.6, ver/1.21, ver/1.20.6-directors-cut, ver/1.21.1, ver/1.21.3 ]
+    branches: [ master, 1.19.2-stuff, ver/1.20, ver/1.20.6, ver/1.21, ver/1.20.6-directors-cut, ver/1.21.1, ver/1.21.3, ver/1.21.4 ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
