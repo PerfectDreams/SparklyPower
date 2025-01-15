@@ -312,6 +312,11 @@ class DreamJetpack : KotlinPlugin(), Listener {
 				if (!e.player.allowFlight) {
 					val blacklistedWorlds = config.getStringList("blacklisted-worlds")
 
+					if (blacklistedWorlds.contains(e.player.world.name) || isInXizum(e.player)) {
+						e.player.sendMessage("$PREFIX §cVocê não pode voar aqui")
+						return
+					}
+
 					val jetpackCheckEvent = PlayerJetpackCheckEvent(e.player)
 					val success = jetpackCheckEvent.callEvent()
 					if (!success) {
