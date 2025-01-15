@@ -51,7 +51,15 @@ class LoginListener(val m: SparklyNeonVelocity, val server: ProxyServer) {
         val isGeyser = m.isGeyser(event.connection)
 
         val playerName = event.username
-        m.logger.info { "User $playerName (IP: ${event.connection.remoteAddress.hostString}) is pre logging in... Is Geyser? $isGeyser" }
+        // This is provided by the client
+        // We will use it because Mojang's API is a bit wonky at the moment (15/01/2025) and the Username -> UUID API doesn't work
+        // Thankfully, the client does provide the Unique ID of the client (online if authenticated, offline if not)
+        // This should NEVER be null in 1.20.2+
+        val clientUniqueId = event.uniqueId!!
+        
+        val isJavaClientCracked = UUID.nameUUIDFromBytes("OfflinePlayer:$playerName".toByteArray(Charsets.UTF_8)) == clientUniqueId
+
+        m.logger.info { "User $playerName (IP: ${event.connection.remoteAddress.hostString} / $clientUniqueId) is pre logging in... Is Geyser? $isGeyser; Is Cracked (Java Edition)? $isJavaClientCracked" }
 
         val currentPlayerUsernameAsLowercase = playerName.lowercase()
         val alreadyConnectedToProxy = server.allPlayers.any { it.username.lowercase() == currentPlayerUsernameAsLowercase }
@@ -110,7 +118,7 @@ class LoginListener(val m: SparklyNeonVelocity, val server: ProxyServer) {
         GlobalScope.launch {
             val playerUniqueIdResult = runBlocking {
                 runCatching {
-                    m.minecraftMojangApi.getUniqueId(playerName)
+                    m.minecraftMojangApi.getUserProfile(clientUniqueId)
                 }
             }
 
@@ -157,7 +165,7 @@ class LoginListener(val m: SparklyNeonVelocity, val server: ProxyServer) {
             // Vamos verificar se é um premium player...
             val premiumStatus = m.pudding.transaction {
                 PremiumUsers.select {
-                    PremiumUsers.premiumUniqueId eq playerUniqueId
+                    PremiumUsers.premiumUniqueId eq clientUniqueId
                 }.firstOrNull()
             }
 
