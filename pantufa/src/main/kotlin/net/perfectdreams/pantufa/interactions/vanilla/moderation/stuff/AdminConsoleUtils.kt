@@ -17,6 +17,7 @@ import net.perfectdreams.pantufa.tables.LuckPermsGroupPermissions
 import net.perfectdreams.pantufa.tables.LuckPermsUserPermissions
 import net.perfectdreams.pantufa.utils.Emotes
 import net.perfectdreams.pantufa.api.commands.PantufaReply
+import net.perfectdreams.pantufa.api.commands.createStyledContent
 import net.perfectdreams.pantufa.utils.Server
 import net.perfectdreams.pantufa.api.commands.styled
 import net.sparklypower.rpc.proxy.ProxyExecuteCommandRequest
@@ -81,25 +82,24 @@ object AdminConsoleUtils {
                 is ProxyExecuteCommandResponse.Success -> {
                     val messages =  response.messages
 
+                    var isFirst = true
+
+                    val replies = messages.map {
+                        val reply = PantufaReply(it, mentionUser = isFirst)
+                        isFirst = false
+                        reply
+                    }
+
+                    val repliesAsString = replies.joinToString("\n") { createStyledContent(it) }
+
                     // Now we are going to do some special checks
-                    if (messages.joinToString("\n").length >= 1900) { // if it is greater than 1900, we are going to send a file
-                        // (the reason it is 1900 is due to the formatting the replies do)
+                    if (repliesAsString.length > 2000) { // if it is greater than 1900, we are going to send a file
                         context.reply(false) {
                             files += FileUpload.fromData(messages.joinToString("\n").toByteArray(Charsets.UTF_8), "result.txt")
                         }
                     } else {
-                        var isFirst = true
-
-                        val replies = messages.map {
-                            val reply = PantufaReply(it, mentionUser = isFirst)
-                            isFirst = false
-                            reply
-                        }
-
                         context.reply(false) {
-                            replies.forEach {
-                                styled(it)
-                            }
+                            content = repliesAsString
                         }
                     }
                 }
