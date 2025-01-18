@@ -1,5 +1,6 @@
 package net.perfectdreams.dreamsinuca.listeners
 
+import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import io.papermc.paper.math.Position
 import kotlinx.serialization.json.Json
 import net.kyori.adventure.text.format.NamedTextColor
@@ -8,14 +9,11 @@ import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.extensions.displaced
 import net.perfectdreams.dreamcore.utils.extensions.rightClick
 import net.perfectdreams.dreamcore.utils.get
-import net.perfectdreams.dreamcustomitems.items.SparklyItemsRegistry
 import net.perfectdreams.dreamsinuca.DreamSinuca
 import net.perfectdreams.dreamsinuca.DreamSinuca.Companion.POOL_TABLE_ENTITY
 import net.perfectdreams.dreamsinuca.sinuca.FinishReason
 import net.perfectdreams.dreamsinuca.sinuca.PoolTable
 import net.perfectdreams.dreamsinuca.sinuca.PoolTableData
-import net.perfectdreams.dreamsinuca.sinuca.PoolTableOrientation
-import org.bukkit.Bukkit
 import org.bukkit.entity.ItemDisplay
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -23,7 +21,6 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.world.EntitiesLoadEvent
-import org.bukkit.event.world.EntitiesUnloadEvent
 import org.bukkit.inventory.EquipmentSlot
 
 class SinucaEntityListener(val m: DreamSinuca) : Listener {
@@ -46,13 +43,12 @@ class SinucaEntityListener(val m: DreamSinuca) : Listener {
     }
 
     @EventHandler
-    fun onEntityUnload(e: EntitiesUnloadEvent) {
-        for (entity in e.entities) {
-            if (entity is ItemDisplay) {
-                // The pool table should be torn down when unloaded, and any active sinucas should be cancelled
-                val poolTable = m.poolTables.remove(entity)
-                poolTable?.tearDown()
-            }
+    fun onEntityUnload(e: EntityRemoveFromWorldEvent) {
+        val entity = e.entity
+        if (entity is ItemDisplay) {
+            // The pool table should be torn down when unloaded, and any active sinucas should be cancelled
+            val poolTable = m.poolTables.remove(entity)
+            poolTable?.tearDown()
         }
     }
 
@@ -74,6 +70,17 @@ class SinucaEntityListener(val m: DreamSinuca) : Listener {
             if (sinuca.value.blocks.contains(Position.block(block.location))) {
                 // e.player.sendMessage("Interacted with sinuca block!")
                 e.isCancelled = true
+
+                if (!e.player.hasPermission("dreamsinuca.join")) {
+                    sinuca.value.sendSinucaMessageToPlayer(
+                        e.player,
+                        textComponent {
+                            color(NamedTextColor.RED)
+                            content("Você não tem permissão para entrar em uma partida de sinuca!")
+                        }
+                    )
+                    return
+                }
 
                 val activeSinuca = sinuca.value.activeSinuca
                 if (activeSinuca != null) {
