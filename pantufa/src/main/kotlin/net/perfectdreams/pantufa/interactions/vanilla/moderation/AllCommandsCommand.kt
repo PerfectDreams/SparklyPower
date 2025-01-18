@@ -80,7 +80,7 @@ class AllCommandsCommand : SlashCommandDeclarationWrapper {
 
                         val formattedTime = "[${instant.dayOfMonth}-${instant.monthValue}-${instant.year} $hour:$minute:$second]"
 
-                        commandsStringBuilder.append("$formattedTime - ${command.player} (${command.player.uuid()}) - /${command.alias}\n")
+                        commandsStringBuilder.append("$formattedTime - ${command.player} - /${command.alias}\n")
                         commandsStringBuilder.append("  - Args: ${command.args ?: ""}\n")
                         commandsStringBuilder.append("  - World: ${command.world}\n")
                         commandsStringBuilder.append("  - XYZ: ${command.x}, ${command.y}, ${command.z}\n")
