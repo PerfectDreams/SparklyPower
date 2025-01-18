@@ -66,7 +66,7 @@ class LSXCommand : SlashCommandDeclarationWrapper {
                     net.perfectdreams.loritta.common.utils.TransactionType.SPARKLYPOWER_LSX,
                     quantity,
                     StoredSparklyPowerLSXSonhosTransaction(
-                        SparklyPowerLSXTransactionEntryAction.EXCHANGED_FROM_SPARKLYPOWER,
+                        SparklyPowerLSXTransactionEntryAction.EXCHANGED_TO_SPARKLYPOWER,
                         sparklyPowerQuantity,
                         playerName,
                         playerUniqueId.toString(),
