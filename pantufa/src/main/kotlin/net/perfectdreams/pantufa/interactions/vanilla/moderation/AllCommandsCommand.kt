@@ -63,13 +63,33 @@ class AllCommandsCommand : SlashCommandDeclarationWrapper {
                 return
             }
 
+            val commandsStringBuilder = StringBuilder()
+
             val commands = transaction(Databases.sparklyPower) {
-                Command.all()
-                    .filter { it.player == player }
-                    .toList()
+                Command.find { Commands.player eq player }
+                    .forEach { command ->
+                        // [xx-xx-xxxx xx:xx:xx] - <player> - /command
+                        // - world:
+                        // - args:
+                        // - X, Y, Z:
+                        // - Full Command: /command args
+                        val instant = Instant.ofEpochMilli(command.time).atZone(ZoneId.of("America/Sao_Paulo"))
+                        val hour = "${instant.hour}".padStart(2, '0')
+                        val minute = "${instant.minute}".padStart(2, '0')
+                        val second = "${instant.second}".padStart(2, '0')
+
+                        val formattedTime = "[${instant.dayOfMonth}-${instant.monthValue}-${instant.year} $hour:$minute:$second]"
+
+                        commandsStringBuilder.append("$formattedTime - ${command.player} (${command.player.uuid()}) - /${command.alias}\n")
+                        commandsStringBuilder.append("  - Args: ${command.args ?: ""}\n")
+                        commandsStringBuilder.append("  - World: ${command.world}\n")
+                        commandsStringBuilder.append("  - XYZ: ${command.x}, ${command.y}, ${command.z}\n")
+                        commandsStringBuilder.append("  - Full Command: /${command.alias} ${command.args ?: ""}\n")
+                        commandsStringBuilder.appendLine()
+                    }
             }
 
-            if (commands.isEmpty()) {
+            if (commandsStringBuilder.isEmpty()) {
                 context.reply(true) {
                     styled(
                         "O jogador **${player}** (`${player.uuid()}`) não executou nenhum comando!",
@@ -79,33 +99,9 @@ class AllCommandsCommand : SlashCommandDeclarationWrapper {
                 return
             }
 
-            val commandsString = buildString {
-                // [xx-xx-xxxx xx:xx:xx] - <player> - /command
-                // - world:
-                // - args:
-                // - X, Y, Z:
-                // - Full Command: /command args
-
-                for (command in commands) {
-                    val instant = Instant.ofEpochMilli(command.time).atZone(ZoneId.of("America/Sao_Paulo"))
-                    val hour = "${instant.hour}".padStart(2, '0')
-                    val minute = "${instant.minute}".padStart(2, '0')
-                    val second = "${instant.second}".padStart(2, '0')
-
-                    val formattedTime = "[${instant.dayOfMonth}-${instant.monthValue}-${instant.year} $hour:$minute:$second]"
-
-                    append("$formattedTime - ${command.player} (${command.player.uuid()}) - /${command.alias}\n")
-                    append("  - Args: ${command.args ?: ""}\n")
-                    append("  - World: ${command.world}\n")
-                    append("  - XYZ: ${command.x}, ${command.y}, ${command.z}\n")
-                    append("  - Full Command: /${command.alias} ${command.args ?: ""}\n")
-                    appendLine()
-                }
-            }
-
             context.reply(true) {
                 files.plusAssign(
-                    AttachedFile.fromData(commandsString.toByteArray(Charsets.UTF_8), "commands-${player}.txt")
+                    AttachedFile.fromData(commandsStringBuilder.toString().toByteArray(Charsets.UTF_8), "commands-${player}.txt")
                 )
             }
         }
