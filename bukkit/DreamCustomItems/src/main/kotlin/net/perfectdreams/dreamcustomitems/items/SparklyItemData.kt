@@ -17,6 +17,10 @@ data class SparklyItemData(
     val displayName: String? = null,
     val lore: List<String>? = null,
     val equippable: Equippable? = null,
+    val maxDamage: Int? = null,
+    val maxStackSize: Int? = null,
+    val mapColor: Int? = null,
+    val chestShopName: String? = null,
     val jukeboxPlayable: JukeboxPlayable? = null,
     val itemAppearanceShiftChanger: ItemAppearanceShiftChanger? = null,
     val hangablePainting: HangablePainting? = null

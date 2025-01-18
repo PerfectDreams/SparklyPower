@@ -1,5 +1,7 @@
 package net.perfectdreams.dreamcustomitems.items
 
+import io.papermc.paper.datacomponent.DataComponentTypes
+import io.papermc.paper.datacomponent.item.MapItemColor
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
@@ -11,6 +13,7 @@ import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamcore.utils.set
 import net.perfectdreams.dreamcustomitems.paintings.SparklyPaintingsRegistry
+import org.bukkit.Color
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.inventory.ItemStack
@@ -26,6 +29,25 @@ class SparklyItem(val data: SparklyItemData) {
         val rawMaterial = getAttributeCheckParents(SparklyItemData::material) ?: error("Missing Material for item ${data.id}! You can't create a ItemStack without a Material!")
 
         return ItemStack.of(rawMaterial)
+            .apply {
+                val rawMaxDamage = getAttributeCheckParents(SparklyItemData::maxDamage)
+
+                if (rawMaxDamage != null) {
+                    setData(DataComponentTypes.MAX_DAMAGE, rawMaxDamage)
+                }
+
+                val rawMaxStackSize = getAttributeCheckParents(SparklyItemData::maxStackSize)
+
+                if (rawMaxStackSize != null) {
+                    setData(DataComponentTypes.MAX_STACK_SIZE, rawMaxStackSize)
+                }
+
+                val rawMapColor = getAttributeCheckParents(SparklyItemData::mapColor)
+
+                if (rawMapColor != null) {
+                    setData(DataComponentTypes.MAP_COLOR, MapItemColor.mapItemColor().color(Color.fromRGB(rawMapColor)))
+                }
+            }
             .meta<ItemMeta> {
                 persistentDataContainer.set(SparklyItemsRegistry.SPARKLYPOWER_CUSTOM_ITEM_ID, data.id)
 

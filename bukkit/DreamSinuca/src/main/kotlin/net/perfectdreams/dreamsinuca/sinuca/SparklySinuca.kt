@@ -1,20 +1,16 @@
 package net.perfectdreams.dreamsinuca.sinuca
 
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import net.perfectdreams.dreamcore.utils.DreamUtils
+import net.perfectdreams.dreamcore.utils.InstantFirework
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.appendTextComponent
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamsinuca.DreamSinuca
-import net.perfectdreams.dreamsinuca.commands.SinucaCommand.StepCollision
-import org.bukkit.Bukkit
-import org.bukkit.Location
-import org.bukkit.Material
-import org.bukkit.entity.Display
-import org.bukkit.entity.ItemDisplay
-import org.bukkit.entity.Player
-import org.bukkit.entity.TextDisplay
+import org.bukkit.*
+import org.bukkit.entity.*
 import org.bukkit.inventory.ItemStack
 import org.dyn4j.dynamics.Body
 import org.dyn4j.dynamics.contact.Contact
@@ -28,25 +24,48 @@ import org.joml.Matrix4f
 
 class SparklySinuca(
     val m: DreamSinuca,
+    val poolTable: PoolTable,
     val player1: Player,
     val player2: Player,
     val gameOriginLocation: Location,
+    val orientation: PoolTableOrientation,
+    // The playfieldWidth and playfieldHeight ALWAYS represent the actual game board
+    // This SHOULD NOT change based on the pool table orientation
     val playfieldWidth: Float,
     val playfieldHeight: Float,
-    val playfield: World<Body>
+    val playfield: World<Body>,
 ) {
     companion object {
         private const val PADDING_BETWEEN_BALL = 0.14
         private const val HALF_PADDING_BETWEEN_BALL = PADDING_BETWEEN_BALL / 2
-        private const val BALL_RADIUS = 0.07
+        private const val BALL_RADIUS = 0.0625
     }
+
+    // This is the translation offset in the Minecraft world
+    val worldTranslationOffsetX = playfieldWidth / 2f
+    val worldTranslationOffsetY = playfieldHeight / 2f
+
+    // THE TOP SHOULD ALWAYS BE ON THE BOTTOM LEFT SIDE
+
+    // This is the topX/topY of the table in the world
+    val worldTopX = when (orientation) {
+        PoolTableOrientation.EAST -> gameOriginLocation.x - worldTranslationOffsetX
+        PoolTableOrientation.SOUTH -> gameOriginLocation.x + worldTranslationOffsetY
+    }
+    val worldTopY = when (orientation) {
+        PoolTableOrientation.EAST -> gameOriginLocation.z - worldTranslationOffsetY
+        PoolTableOrientation.SOUTH -> gameOriginLocation.z - worldTranslationOffsetX
+    }
+
     val translationOffsetX = playfieldWidth / 2f
     val translationOffsetY = playfieldHeight / 2f
 
-    val topX = gameOriginLocation.x - translationOffsetX
-    val topY = gameOriginLocation.z - translationOffsetY
-
     val turns = mutableListOf(player1, player2)
+
+    /**
+     * If true, then the game is still running
+     */
+    var isPlaying = true
 
     /**
      * What's the player that is currently playing right now
@@ -70,6 +89,7 @@ class SparklySinuca(
      * If the cueball is in hand, allowing the player to reposition it
      */
     var cueballInHand = false
+    var lastCueballInHandTick: Int? = null
 
     // var cueBallHitbox: Interaction? = null
     // val cueball = playfield.spawnCircle(0f, 0f, 0.13f, Color.RED)
@@ -81,6 +101,7 @@ class SparklySinuca(
     val balls = mutableListOf<Ball>()
 
     val cueball = spawnBall(1.0, translationOffsetY.toDouble(), BallType.CUE)
+    // val cueball = spawnBall(0.0, 0.0, BallType.CUE)
     val eightball = spawnBall(3.0 + PADDING_BETWEEN_BALL + PADDING_BETWEEN_BALL, translationOffsetY.toDouble(), BallType.EIGHT_BALL)
     // val eightBall = spawnBall(3.0, translationOffsetY.toDouble())
 
@@ -130,25 +151,89 @@ class SparklySinuca(
         it.isPersistent = false
         it.billboard = Display.Billboard.VERTICAL
         it.lineWidth = Int.MAX_VALUE
+        it.isShadowed = true
     }
 
     var previewBallTrajectory = true
 
+    /**
+     * How many ticks have elapsed on this round
+     */
+    var roundElapsedTicks = 0
+
     fun updateGameStatusDisplay() {
+        val s = (1200 - this.roundElapsedTicks)
+
+        val currentRound = textComponent {
+            color(NamedTextColor.GOLD)
+            decorate(TextDecoration.BOLD)
+            content("Round $round")
+        }
+
+        val currentTimeStatus = if (isWaitingForPhysicsToEnd) {
+            textComponent {
+                color(NamedTextColor.LIGHT_PURPLE)
+                appendTextComponent {
+                    decorate(TextDecoration.BOLD)
+                    content("Bolas rolando...")
+                }
+            }
+        } else {
+            textComponent {
+                color(NamedTextColor.LIGHT_PURPLE)
+                appendTextComponent {
+                    decorate(TextDecoration.BOLD)
+                    content("Tempo Restante: ")
+                }
+
+                appendTextComponent {
+                    content("${s / 20}s")
+                }
+            }
+        }
+
         when (val gamePhase = gamePhase) {
             is GamePhase.BreakingOut, is GamePhase.DecidingTeams -> {
                 gameStatusDisplay.text(
                     textComponent {
+                        append(currentRound)
+                        appendNewline()
+                        append(currentTimeStatus)
+                        appendNewline()
                         appendTextComponent {
-                            content(gamePhase::class.simpleName!!)
+                            if (playerTurn == player1) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content("\uD83E\uDC0A ")
+                                }
+                            }
+                            appendTextComponent {
+                                content(player1.name)
+                            }
+                            if (playerTurn == player1) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content(" \uD83E\uDC08")
+                                }
+                            }
                         }
                         appendNewline()
                         appendTextComponent {
-                            content(player1.name)
-                        }
-                        appendNewline()
-                        appendTextComponent {
-                            content(player2.name)
+                            if (playerTurn == player2) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content("\uD83E\uDC0A ")
+                                }
+                            }
+                            appendTextComponent {
+                                content(player2.name)
+                            }
+                            if (playerTurn == player2) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content(" \uD83E\uDC08")
+                                }
+                            }
                         }
                     }
                 )
@@ -157,30 +242,44 @@ class SparklySinuca(
             is GamePhase.StrikeDown -> {
                 gameStatusDisplay.text(
                     textComponent {
-                        appendTextComponent {
-                            content(gamePhase::class.simpleName!!)
-                        }
+                        append(currentRound)
+                        appendNewline()
+                        append(currentTimeStatus)
                         appendNewline()
 
                         appendTextComponent {
-                            content(player1.name)
-                            when (gamePhase.player1Team) {
-                                BallType.CUE -> TODO()
-                                BallType.EIGHT_BALL -> TODO()
-                                BallType.BLUE -> color(NamedTextColor.AQUA)
-                                BallType.RED -> color(NamedTextColor.RED)
+                            if (playerTurn == player1) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content("\uD83E\uDC0A ")
+                                }
                             }
+                            appendTextComponent {
+                                content(player1.name)
+                                when (gamePhase.player1Team) {
+                                    BallType.CUE -> TODO()
+                                    BallType.EIGHT_BALL -> TODO()
+                                    BallType.BLUE -> color(NamedTextColor.AQUA)
+                                    BallType.RED -> color(NamedTextColor.RED)
+                                }
 
-                            val totalBallsOfMyTeam = balls.filter { it.type == gamePhase.player1Team }
-                                .sortedByDescending { it.pocketed }
+                                val totalBallsOfMyTeam = balls.filter { it.type == gamePhase.player1Team }
+                                    .sortedByDescending { it.pocketed }
 
-                            append(" ")
+                                append(" ")
 
-                            for (ball in totalBallsOfMyTeam) {
-                                if (ball.pocketed) {
-                                    append("⬤")
-                                } else {
-                                    append("◯")
+                                for (ball in totalBallsOfMyTeam) {
+                                    if (ball.pocketed) {
+                                        append("⬤")
+                                    } else {
+                                        append("◯")
+                                    }
+                                }
+                            }
+                            if (playerTurn == player1) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content(" \uD83E\uDC08")
                                 }
                             }
                         }
@@ -188,24 +287,38 @@ class SparklySinuca(
                         appendNewline()
 
                         appendTextComponent {
-                            content(player2.name)
-                            when (gamePhase.player2Team) {
-                                BallType.CUE -> TODO()
-                                BallType.EIGHT_BALL -> TODO()
-                                BallType.BLUE -> color(NamedTextColor.AQUA)
-                                BallType.RED -> color(NamedTextColor.RED)
+                            if (playerTurn == player2) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content("\uD83E\uDC0A ")
+                                }
                             }
+                            appendTextComponent {
+                                content(player2.name)
+                                when (gamePhase.player2Team) {
+                                    BallType.CUE -> TODO()
+                                    BallType.EIGHT_BALL -> TODO()
+                                    BallType.BLUE -> color(NamedTextColor.AQUA)
+                                    BallType.RED -> color(NamedTextColor.RED)
+                                }
 
-                            val totalBallsOfMyTeam = balls.filter { it.type == gamePhase.player2Team }
-                                .sortedByDescending { it.pocketed }
+                                val totalBallsOfMyTeam = balls.filter { it.type == gamePhase.player2Team }
+                                    .sortedByDescending { it.pocketed }
 
-                            append(" ")
+                                append(" ")
 
-                            for (ball in totalBallsOfMyTeam) {
-                                if (ball.pocketed) {
-                                    append("⬤")
-                                } else {
-                                    append("◯")
+                                for (ball in totalBallsOfMyTeam) {
+                                    if (ball.pocketed) {
+                                        append("⬤")
+                                    } else {
+                                        append("◯")
+                                    }
+                                }
+                            }
+                            if (playerTurn == player2) {
+                                appendTextComponent {
+                                    color(NamedTextColor.GOLD)
+                                    content(" \uD83E\uDC08")
                                 }
                             }
                         }
@@ -287,6 +400,8 @@ class SparklySinuca(
     }
 
     init {
+        // Bukkit.broadcastMessage("Top: $worldTopX; $worldTopY")
+        //Bukkit.broadcastMessage("Bottom: $worldBottomX; $worldBottomY")
         spawnWall(0.0, 0.25, 0.25, 1.25) // border
         spawnWall(0.0, 2.75, 5.0, 0.25) // borderbottom
         spawnWall(2.625, 2.5, 1.6749999999999998, 0.25) // border
@@ -334,12 +449,37 @@ class SparklySinuca(
      */
     fun startBallTrajectoryPreviewTask() {
         m.launchMainThread {
-            while (true) {
+            while (isPlaying) {
                 if (previewBallTrajectory) {
+                    val gamePhase = gamePhase
+
+                    val checkTeam = if (gamePhase is GamePhase.StrikeDown) {
+                        val team = if (playerTurn == player1) {
+                            gamePhase.player1Team
+                        } else {
+                            gamePhase.player2Team
+                        }
+
+                        val pocketedAllBalls = balls.filter { it.type == team }.all { it.pocketed }
+
+                        if (pocketedAllBalls) {
+                            BallType.EIGHT_BALL
+                        } else
+                            team
+                    } else {
+                        null
+                    }
+
                     val usedEntities = mutableListOf<ItemDisplay>()
                     val playerLocationStraight = playerTurn.location.apply {
                         this.pitch = 0f
+
+                        if (orientation == PoolTableOrientation.SOUTH) {
+                            this.yaw -= 90f
+                        }
                     }
+
+                    var isTargetingValid = true
 
                     trajectoryLoop@ for (it in 0 until 50) {
                         val velocity = playerLocationStraight.direction.multiply(it * 0.08)
@@ -354,6 +494,10 @@ class SparklySinuca(
                             val bodyAABB = body.createAABB()
 
                             if (aabb.overlaps(bodyAABB)) {
+                                val ballType = balls.firstOrNull { it.body == body }
+                                if (ballType != null && checkTeam != null && ballType.type != checkTeam) {
+                                    isTargetingValid = false
+                                }
                                 break@trajectoryLoop
                             }
                         }
@@ -362,11 +506,26 @@ class SparklySinuca(
                         val pointEntity = ballTrajectoryEntities.getOrNull(it)
 
                         val location = gameOriginLocation.clone()
-                            .add(
-                                gameX - this@SparklySinuca.translationOffsetX,
-                                0.0,
-                                gameZ - this@SparklySinuca.translationOffsetY
-                            )
+
+                        when (orientation) {
+                            PoolTableOrientation.EAST -> {
+                                location.add(
+                                    gameX - worldTranslationOffsetX,
+                                    0.0,
+                                    gameZ - worldTranslationOffsetY
+                                )
+                            }
+                            //  (worldTranslationOffsetY - ball.body.worldCenter.y).toFloat(),
+                            //                                0.0f,
+                            //                                (ball.body.worldCenter.x - worldTranslationOffsetX).toFloat(),
+                            PoolTableOrientation.SOUTH -> {
+                                location.add(
+                                    worldTranslationOffsetY - gameZ,
+                                    0.0,
+                                    gameX - worldTranslationOffsetX
+                                )
+                            }
+                        }
 
                         val currentEntity = if (pointEntity == null) {
                             val entity = gameOriginLocation.world.spawn(
@@ -378,7 +537,7 @@ class SparklySinuca(
                                     Matrix4f().scale(0.05f)
                                 )
                                 it.teleportDuration = 1
-                                it.setItemStack(ItemStack.of(Material.SNOW_BLOCK))
+                                // We set the ItemStack later
                             }
 
                             ballTrajectoryEntities.add(entity)
@@ -397,6 +556,16 @@ class SparklySinuca(
                         unusedEntity.remove()
                         ballTrajectoryEntities.remove(unusedEntity)
                     }
+
+                    val itemStack = if (isTargetingValid) {
+                        ItemStack.of(Material.SNOW_BLOCK)
+                    } else {
+                        ItemStack.of(Material.REDSTONE_BLOCK)
+                    }
+
+                    for (entity in ballTrajectoryEntities) {
+                        entity.setItemStack(itemStack)
+                    }
                 } else {
                     for (entity in ballTrajectoryEntities) {
                         entity.remove()
@@ -410,13 +579,152 @@ class SparklySinuca(
         }
     }
 
+    fun calculateCueballCoordinates(worldPosX: Double, worldPosZ: Double): Pair<Double, Double> {
+        // Calculating the relative position according to the raytraced value is a bit tricky due to the different orientations
+        val cueballX: Double
+        val cueballY: Double
+
+        when (orientation) {
+            PoolTableOrientation.EAST -> {
+                cueballX = worldPosX - worldTopX
+                cueballY = worldPosZ - worldTopY
+            }
+            PoolTableOrientation.SOUTH -> {
+                cueballX = worldPosZ - worldTopY
+                cueballY = worldTopX - worldPosX
+            }
+        }
+
+        return Pair(cueballX, cueballY)
+    }
+
+    /**
+     * Previews the cueball position if [cueballInHand] is true
+     *
+     * We use this instead of [PlayerMoveEvent] because [PlayerMoveEvent] does not call every time the player moves their head, which makes it look a bit wonky
+     */
+    fun startCueballPreviewTask() {
+        m.launchMainThread {
+            loop@while (isPlaying) {
+                if (cueballInHand) {
+                    run {
+                        val raytraceResult = playerTurn.rayTraceBlocks(7.0) ?: return@run // Couldn't ray trace, abort!
+                        val position = raytraceResult.hitPosition
+
+                        // Calculating the relative position according to the raytraced value is a bit tricky due to the different orientations
+                        val (cueballX, cueballY) = calculateCueballCoordinates(position.x, position.z)
+
+                        // Bukkit.broadcastMessage("Top: $worldTopX; $worldTopY; CueballX: $cueballX - CueballY: $cueballY")
+
+                        if (!checkIfCoordinateIsInsidePlayfield(cueballX.toFloat(), cueballY.toFloat())) {
+                            // If outside of playfield, just ignore it and don't attempt to translate
+                            return@run
+                        }
+
+                        // Unpocket that thang
+                        // We need to calculate where are we looking by using *raytracing* (omg)
+                        cueball.body.translateToOrigin()
+
+                        // Bukkit.broadcastMessage("Translating to $cueballX, $cueballY")
+
+                        cueball.body.translate(cueballX, cueballY)
+
+                        val cueballAABB = cueball.body.createAABB()
+                        var isValidPosition = true
+
+                        for (body in playfield.bodies) {
+                            if (body == cueball.body)
+                                continue
+
+                            val bodyAABB = body.createAABB()
+
+                            if (cueballAABB.overlaps(bodyAABB)) {
+                                ballToDisplayEntity[this@SparklySinuca.cueball]?.setItemStack(ItemStack.of(Material.REDSTONE_BLOCK))
+                                isValidPosition = false
+                                break
+                            }
+                        }
+
+                        if (isValidPosition) {
+                            ballToDisplayEntity[this@SparklySinuca.cueball]?.setItemStack(ItemStack.of(Material.WHITE_CONCRETE))
+                        } else {
+                            ballToDisplayEntity[this@SparklySinuca.cueball]?.setItemStack(ItemStack.of(Material.REDSTONE_BLOCK))
+                        }
+
+                        updateGameObjects()
+                    }
+                }
+
+                if (!isWaitingForPhysicsToEnd) {
+                    val s = (1200 - roundElapsedTicks)
+
+                    // peter pulls the plug: well that's annoying
+                    /* if (roundElapsedTicks % 20 == 0) {
+                        playerTurn.playSound(playerTurn.location, Sound.UI_BUTTON_CLICK, 0.4f, 1f)
+                    } */
+
+                    if (300 >= s) {
+                        if (s % 20 == 0) {
+                            playerTurn.playSound(playerTurn.location, Sound.UI_BUTTON_CLICK, 0.4f, 1f)
+                        }
+                    }
+
+                    if (s == 0) {
+                        // Bye, it's over
+                        val winner = if (this@SparklySinuca.playerTurn == this@SparklySinuca.player1) {
+                            this@SparklySinuca.player2
+                        } else {
+                            this@SparklySinuca.player1
+                        }
+
+                        poolTable.sendSinucaMessageToPlayersNearIt(
+                            textComponent {
+                                color(NamedTextColor.GREEN)
+
+                                appendTextComponent {
+                                    content("Parabéns ")
+                                }
+
+                                appendTextComponent {
+                                    color(NamedTextColor.AQUA)
+                                    content(winner.name)
+                                }
+
+                                appendTextComponent {
+                                    content("! Você venceu a sinuca pois parece que ")
+                                }
+
+                                appendTextComponent {
+                                    color(NamedTextColor.AQUA)
+                                    content(this@SparklySinuca.playerTurn.name)
+                                }
+
+                                appendTextComponent {
+                                    content(" dormiu no teclado...")
+                                }
+                            }
+                        )
+
+                        poolTable.cancelActive8BallPool()
+                        return@launchMainThread
+                    }
+
+                    updateGameStatusDisplay()
+
+                    roundElapsedTicks++
+                }
+
+                delayTicks(1L)
+            }
+        }
+    }
+
     /**
      * Starts a new task and starts processing the sinuca's physics, the game should wait this task to process any other tasks related to the game!
      */
     fun processPhysics() {
         this.isWaitingForPhysicsToEnd = true
         this.previewBallTrajectory = false
-        this.round++
 
         m.launchMainThread {
             var firstHitWasSelfBall: Boolean? = null
@@ -436,7 +744,7 @@ class SparklySinuca(
             }
             var ticks = 0
 
-            while (true) {
+            while (isPlaying) {
                 // val start = System.nanoTime()
                 // val startStep: Long
                 // val endStep: Long
@@ -454,7 +762,8 @@ class SparklySinuca(
                             finishedProcessingAllBalls = false
 
                             if (ticks >= 200) {
-                                Bukkit.broadcastMessage("Mais de 200 ticks passaram e ${ball.body.userData} ainda não está em rest! ${ball.body.linearVelocity}")
+                                finishedProcessingAllBalls = true
+                                m.logger.info("More than 200 ticks have elapsed and ${ball.body.userData} is not in rest! Bailing physics processing... ${ball.body.linearVelocity} ${ball.body.angularVelocity}")
                             }
                             break
                         }
@@ -462,8 +771,19 @@ class SparklySinuca(
                 }
 
                 if (finishedProcessingAllBalls) {
+                    sparklySinuca.round++
+                    sparklySinuca.roundElapsedTicks = 0
                     sparklySinuca.isWaitingForPhysicsToEnd = false
-                    Bukkit.broadcastMessage("Round demorou $ticks ticks para processar!")
+
+                    poolTable.sendSinucaMessageToPlayersNearIt(
+                        textComponent {
+                            color(NamedTextColor.GRAY)
+
+                            appendTextComponent {
+                                content("Round encerrado! ($ticks ticks)")
+                            }
+                        }
+                    )
 
                     if (sparklySinuca.gamePhase is GamePhase.BreakingOut) {
                         val didAnyTeamBallBrokeOut = balls.any { it.pocketed && (it.type == BallType.RED || it.type == BallType.BLUE) }
@@ -472,14 +792,24 @@ class SparklySinuca(
                         }
                     }
 
-                    // TODO: Move this somewhere else
-                    updateGameStatusDisplay()
+                    // While there is a bit of temptation to add a "updateGameStatusDisplay()" here, it is better to update the display only after processing everything
+                    // To avoid the display showing outdated info (even if for only one tick)
 
                     // Uh oh, the eightball was pocketed!
                     if (sparklySinuca.eightball.pocketed) {
                         when (val gamePhase = sparklySinuca.gamePhase) {
                             is GamePhase.BreakingOut -> {
-                                Bukkit.broadcastMessage("Empate pois a bola 8 foi pocketada na fase de break!")
+                                poolTable.sendSinucaMessageToPlayersNearIt(
+                                    textComponent {
+                                        color(NamedTextColor.YELLOW)
+
+                                        appendTextComponent {
+                                            content("O jogo acabou em empate, pois a bola 8 foi encaçapada durante a fase de break!")
+                                        }
+                                    }
+                                )
+
+                                poolTable.cancelActive8BallPool()
                                 return@launchMainThread
                             }
 
@@ -490,7 +820,26 @@ class SparklySinuca(
                                     sparklySinuca.player1
                                 }
 
-                                Bukkit.broadcastMessage("${winner.name} venceu a sinuca!")
+                                poolTable.sendSinucaMessageToPlayersNearIt(
+                                    textComponent {
+                                        color(NamedTextColor.GREEN)
+
+                                        appendTextComponent {
+                                            content("Parabéns ")
+                                        }
+
+                                        appendTextComponent {
+                                            color(NamedTextColor.AQUA)
+                                            content(winner.name)
+                                        }
+
+                                        appendTextComponent {
+                                            content("! Você venceu a sinuca!")
+                                        }
+                                    }
+                                )
+
+                                poolTable.cancelActive8BallPool()
                                 return@launchMainThread
                             }
 
@@ -508,6 +857,7 @@ class SparklySinuca(
                                 val winner: Player
                                 val loser: Player
 
+                                // If you pocket both the eight ball AND the cue ball, you lose
                                 if (pocketedAllBalls && !sparklySinuca.cueball.pocketed) {
                                     winner = sparklySinuca.playerTurn
                                     loser = turns.get(1)
@@ -516,7 +866,46 @@ class SparklySinuca(
                                     loser = sparklySinuca.playerTurn
                                 }
 
-                                Bukkit.broadcastMessage("${winner.name} venceu a sinuca!")
+                                poolTable.sendSinucaMessageToPlayersNearIt(
+                                    textComponent {
+                                        color(NamedTextColor.GREEN)
+
+                                        appendTextComponent {
+                                            content("Parabéns ")
+                                        }
+
+                                        appendTextComponent {
+                                            color(NamedTextColor.AQUA)
+                                            content(winner.name)
+                                        }
+
+                                        appendTextComponent {
+                                            content("! Você venceu a partida de sinuca!")
+                                        }
+                                    }
+                                )
+
+                                val r = DreamUtils.random.nextInt(0, 256)
+                                val g = DreamUtils.random.nextInt(0, 256)
+                                val b = DreamUtils.random.nextInt(0, 256)
+
+                                val fadeR = Math.max(0, r - 60)
+                                val fadeG = Math.max(0, g - 60)
+                                val fadeB = Math.max(0, b - 60)
+
+                                val fireworkEffect = FireworkEffect.builder()
+                                    .withTrail()
+                                    .withColor(Color.fromRGB(r, g, b))
+                                    .withFade(Color.fromRGB(fadeR, fadeG, fadeB))
+                                    .with(FireworkEffect.Type.values()[DreamUtils.random.nextInt(0, FireworkEffect.Type.values().size)])
+                                    .build()
+
+                                InstantFirework.spawn(
+                                    winner.location,
+                                    fireworkEffect
+                                )
+
+                                poolTable.cancelActive8BallPool()
                                 return@launchMainThread
                             }
                         }
@@ -524,56 +913,144 @@ class SparklySinuca(
 
                     // Now, we have a bunch of checks that we NEED to do before continuing...
                     if (sparklySinuca.cueball.pocketed) {
-                        // There's a specific edge case here, if the cueball was pocketed AND this is the last round of the game, the player loses
-                        if (startingGamePhase is GamePhase.StrikeDown && isOnLastPhase) {
-                            val currentTeam = if (sparklySinuca.playerTurn == sparklySinuca.player1) {
-                                startingGamePhase.player1Team
-                            } else {
-                                startingGamePhase.player2Team
-                            }
-
-                            val pocketedAllBalls = balls.filter { it.type == currentTeam }.all { it.pocketed }
-
-                            if (pocketedAllBalls) {
-                                Bukkit.broadcastMessage("A cue ball foi pocketada no último round do ${sparklySinuca.playerTurn.name}! Ou seja, quem ganhou foi $${sparklySinuca.turns.get(1).name}!")
-                                return@launchMainThread
-                            }
-                        }
-
                         // If the cueball was pocketed, the next player can move the cueball
                         sparklySinuca.previewBallTrajectory = false
                         sparklySinuca.cueballInHand = true
 
                         sparklySinuca.turns.add(sparklySinuca.turns.removeFirst())
-                        Bukkit.broadcastMessage("A cue ball foi pocketada! O ${sparklySinuca.playerTurn.name} pode colocar ela onde ele quiser")
+
+                        playerTurn.playSound(
+                            playerTurn.location,
+                            "minecraft:entity.player.levelup",
+                            1f,
+                            2f
+                        )
+
+                        poolTable.sendSinucaMessageToPlayersNearIt(
+                            textComponent {
+                                color(NamedTextColor.YELLOW)
+
+                                appendTextComponent {
+                                    content("A bola branca foi encaçapada! ")
+                                }
+
+                                appendTextComponent {
+                                    color(NamedTextColor.AQUA)
+                                    content(sparklySinuca.playerTurn.name)
+                                }
+
+                                appendTextComponent {
+                                    content(" está com ela na mão e pode colocar onde quiser!")
+                                }
+                            }
+                        )
+                        updateGameStatusDisplay()
                         return@launchMainThread
                     } else if (startingGamePhase is GamePhase.StrikeDown && (firstHitWasSelfBall == null || firstHitWasSelfBall == false)) {
                         sparklySinuca.cueball.markAsPocketed()
                         sparklySinuca.previewBallTrajectory = false
                         sparklySinuca.cueballInHand = true
 
+                        val faultPlayer = playerTurn
                         sparklySinuca.turns.add(sparklySinuca.turns.removeFirst())
-                        Bukkit.broadcastMessage("O player cometeu uma foul! O ${sparklySinuca.playerTurn.name} pode colocar ela onde ele quiser")
+
+                        playerTurn.playSound(
+                            playerTurn.location,
+                            "minecraft:entity.player.levelup",
+                            1f,
+                            2f
+                        )
+
+                        poolTable.sendSinucaMessageToPlayersNearIt(
+                            textComponent {
+                                color(NamedTextColor.YELLOW)
+
+                                appendTextComponent {
+                                    color(NamedTextColor.AQUA)
+                                    content(faultPlayer.name)
+                                }
+
+                                appendTextComponent {
+                                    content(" cometeu uma falta! ")
+                                }
+
+                                appendTextComponent {
+                                    color(NamedTextColor.AQUA)
+                                    content(sparklySinuca.playerTurn.name)
+                                }
+
+                                appendTextComponent {
+                                    content(" está com ela na mão e pode colocar onde quiser!")
+                                }
+                            }
+                        )
+                        updateGameStatusDisplay()
                         return@launchMainThread
                     } else if (pocketedSelfBall) {
                         // If we pocketed the self ball, then we let the current player continue
                         sparklySinuca.previewBallTrajectory = true
 
-                        Bukkit.broadcastMessage("O player ${playerTurn.name} conseguiu derrubar uma das suas bolas, ele pode continuar!")
+                        playerTurn.playSound(
+                            playerTurn.location,
+                            "minecraft:entity.player.levelup",
+                            1f,
+                            2f
+                        )
+
+                        poolTable.sendSinucaMessageToPlayersNearIt(
+                            textComponent {
+                                color(NamedTextColor.YELLOW)
+
+                                appendTextComponent {
+                                    color(NamedTextColor.AQUA)
+                                    content(sparklySinuca.playerTurn.name)
+                                }
+
+                                appendTextComponent {
+                                    content(" conseguiu encaçapar uma de suas bolas, ele continuará jogando!")
+                                }
+                            }
+                        )
+                        updateGameStatusDisplay()
                         return@launchMainThread
                     } else {
                         // If nothing else, then we switch to the next turn and continue as is
                         sparklySinuca.turns.add(sparklySinuca.turns.removeFirst())
 
+                        playerTurn.playSound(
+                            playerTurn.location,
+                            "minecraft:entity.player.levelup",
+                            1f,
+                            2f
+                        )
+
                         sparklySinuca.previewBallTrajectory = true
 
-                        Bukkit.broadcastMessage("Agora é a vez de ${playerTurn.name}!")
+                        poolTable.sendSinucaMessageToPlayersNearIt(
+                            textComponent {
+                                color(NamedTextColor.YELLOW)
+
+                                appendTextComponent {
+                                    content("Agora é a vez de ")
+                                }
+
+                                appendTextComponent {
+                                    color(NamedTextColor.AQUA)
+                                    content(sparklySinuca.playerTurn.name)
+                                }
+
+                                appendTextComponent {
+                                    content("!")
+                                }
+                            }
+                        )
+                        updateGameStatusDisplay()
                         return@launchMainThread
                     }
                 } else {
-                    playfield.bodies.filter { !it.isAtRest }.forEach {
-                        Bukkit.broadcastMessage("Body ${it.userData} ${it.isAtRest} ${it.linearVelocity} ${it.angularVelocity}")
-                    }
+                    // playfield.bodies.filter { !it.isAtRest }.forEach {
+                    //      Bukkit.broadcastMessage("Body ${it.userData} ${it.isAtRest} ${it.linearVelocity} ${it.angularVelocity}")
+                    // }
                 }
 
                 // startStep = System.nanoTime()
@@ -595,9 +1072,19 @@ class SparklySinuca(
 
                     if (ballBody.contains(body1) && sparklySinuca.walls.contains(body2)) {
                         // Bukkit.broadcastMessage("ball bouncy! depth is ${stepCollision.depth}")
-                        val x = (stepCollision.point.x - sparklySinuca.translationOffsetX)
-                        val z = (stepCollision.point.y - sparklySinuca.translationOffsetY)
+                        val x: Double
+                        val z: Double
 
+                        when (orientation) {
+                            PoolTableOrientation.EAST -> {
+                                x = (stepCollision.point.x - sparklySinuca.worldTranslationOffsetX)
+                                z = (stepCollision.point.y - sparklySinuca.worldTranslationOffsetY)
+                            }
+                            PoolTableOrientation.SOUTH -> {
+                                x = (sparklySinuca.worldTranslationOffsetY - stepCollision.point.y)
+                                z = (stepCollision.point.x - sparklySinuca.worldTranslationOffsetX)
+                            }
+                        }
 
                         sparklySinuca.gameOriginLocation.world.playSound(
                             sparklySinuca.gameOriginLocation.clone().add(x, 0.0, z),
@@ -609,9 +1096,19 @@ class SparklySinuca(
 
                     if (ballBody.contains(body1) && ballBody.contains(body2)) {
                         // Bukkit.broadcastMessage("ball bouncy! depth is ${stepCollision.depth}")
+                        val x: Double
+                        val z: Double
 
-                        val x = (stepCollision.point.x - sparklySinuca.translationOffsetX)
-                        val z = (stepCollision.point.y - sparklySinuca.translationOffsetY)
+                        when (orientation) {
+                            PoolTableOrientation.EAST -> {
+                                x = (stepCollision.point.x - sparklySinuca.worldTranslationOffsetX)
+                                z = (stepCollision.point.y - sparklySinuca.worldTranslationOffsetY)
+                            }
+                            PoolTableOrientation.SOUTH -> {
+                                x = (sparklySinuca.worldTranslationOffsetY - stepCollision.point.y)
+                                z = (stepCollision.point.x - sparklySinuca.worldTranslationOffsetX)
+                            }
+                        }
 
                         sparklySinuca.gameOriginLocation.world.playSound(
                             sparklySinuca.gameOriginLocation.clone().add(x, 0.0, z),
@@ -638,12 +1135,12 @@ class SparklySinuca(
                                         currentTeam
 
                                     if (ball2.type != currentBallTeam) {
-                                        Bukkit.broadcastMessage("Primeira bola acertada não foi uma bola do time!")
+                                        // Bukkit.broadcastMessage("Primeira bola acertada não foi uma bola do time!")
 
                                         // Whoops, that's a foul!
                                         firstHitWasSelfBall = false
                                     } else {
-                                        Bukkit.broadcastMessage("Primeira bola acertada foi uma bola do time!")
+                                        // Bukkit.broadcastMessage("Primeira bola acertada foi uma bola do time!")
 
                                         // Phew, that's not a foul thankfully :3
                                         firstHitWasSelfBall = true
@@ -654,7 +1151,7 @@ class SparklySinuca(
                     }
 
                     if (ballBody.contains(body1) && pocketBody.contains(body2)) {
-                        Bukkit.broadcastMessage("Pocketed! #1")
+                        // Bukkit.broadcastMessage("Pocketed! #1")
 
                         val ball = sparklySinuca.balls.first { it.body == body1 }
 
@@ -669,14 +1166,24 @@ class SparklySinuca(
                                 } else gamePhase.player2Team
 
                                 if (ball.type == currentTeam) {
-                                    Bukkit.broadcastMessage("Pocketou bola do time, pode continuar :3")
+                                    // Bukkit.broadcastMessage("Pocketou bola do time, pode continuar :3")
                                     pocketedSelfBall = true
                                 }
                             }
 
-                            val x = (stepCollision.point.x - sparklySinuca.translationOffsetX)
-                            val z = (stepCollision.point.y - sparklySinuca.translationOffsetY)
+                            val x: Double
+                            val z: Double
 
+                            when (orientation) {
+                                PoolTableOrientation.EAST -> {
+                                    x = (stepCollision.point.x - sparklySinuca.worldTranslationOffsetX)
+                                    z = (stepCollision.point.y - sparklySinuca.worldTranslationOffsetY)
+                                }
+                                PoolTableOrientation.SOUTH -> {
+                                    x = (sparklySinuca.worldTranslationOffsetY - stepCollision.point.y)
+                                    z = (stepCollision.point.x - sparklySinuca.worldTranslationOffsetX)
+                                }
+                            }
                             sparklySinuca.gameOriginLocation.world.playSound(
                                 sparklySinuca.gameOriginLocation.clone().add(x, 0.0, z),
                                 "sparklypower:snooker.ball_pocket",
@@ -687,7 +1194,7 @@ class SparklySinuca(
                     }
 
                     if (ballBody.contains(body2) && pocketBody.contains(body1)) {
-                        Bukkit.broadcastMessage("Pocketed! #2")
+                        // Bukkit.broadcastMessage("Pocketed! #2")
                     }
                 }
                 currentStepCollisions.clear()
@@ -715,12 +1222,32 @@ class SparklySinuca(
                 continue
 
             val itemDisplay = this@SparklySinuca.ballToDisplayEntity[ball]
+
+            // val (ballCenterX, ballCenterZ) = poolTable.getCorrectXZOrder(ball.body.worldCenter.x, ball.body.worldCenter.y)
+
+            if (ball.type == BallType.CUE) {
+                // Bukkit.broadcastMessage("Cue: ${ball.body.worldCenter.x}, ${ball.body.worldCenter.y}")
+            }
+
             val transformationMatrix = Matrix4f()
-                .translate(
-                    (ball.body.worldCenter.x - this@SparklySinuca.translationOffsetX).toFloat(),
-                    0.0f,
-                    (ball.body.worldCenter.y - this@SparklySinuca.translationOffsetY).toFloat(),
-                )
+                .apply {
+                    when (orientation) {
+                        PoolTableOrientation.EAST -> {
+                            translate(
+                                (ball.body.worldCenter.x - worldTranslationOffsetX).toFloat(),
+                                0.0f,
+                                (ball.body.worldCenter.y - worldTranslationOffsetY).toFloat(),
+                            )
+                        }
+                        PoolTableOrientation.SOUTH -> {
+                            translate(
+                                (worldTranslationOffsetY - ball.body.worldCenter.y).toFloat(),
+                                0.0f,
+                                (ball.body.worldCenter.x - worldTranslationOffsetX).toFloat(),
+                            )
+                        }
+                    }
+                }
                 .scale(0.125f)
 
             if (itemDisplay != null) {

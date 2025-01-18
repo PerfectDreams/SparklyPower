@@ -1,5 +1,5 @@
 name: DreamSinuca
 main: net.perfectdreams.dreamsinuca.DreamSinuca
 version: 1.0.0
-depend: ["DreamCore"]
+depend: ["DreamCore", "DreamCustomItems"]
 api-version: 1.13
