@@ -2,19 +2,29 @@ package net.perfectdreams.dreamsinuca.sinuca
 
 import io.papermc.paper.math.BlockPosition
 import io.papermc.paper.math.Position
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.perfectdreams.dreamcore.utils.Databases
 import net.perfectdreams.dreamcore.utils.adventure.append
 import net.perfectdreams.dreamcore.utils.adventure.appendTextComponent
 import net.perfectdreams.dreamcore.utils.adventure.textComponent
 import net.perfectdreams.dreamcustomitems.items.SparklyItemsRegistry
 import net.perfectdreams.dreamsinuca.DreamSinuca
+import net.perfectdreams.dreamsinuca.tables.EightBallPoolGameMatches
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.ItemDisplay
 import org.bukkit.entity.Player
 import org.dyn4j.dynamics.Body
 import org.dyn4j.world.World
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
+import java.time.Instant
 
 /**
  * Stores a reference to a pool table
@@ -105,6 +115,8 @@ class PoolTable(
      * Starts an 8 ball pool game between [player1] and [player2]
      */
     fun start8BallPool(player1: Player, player2: Player) {
+        val now = Instant.now()
+
         this.pendingPlayer = null
 
         this.previousGameBalls.forEach { it.remove() }
@@ -163,6 +175,25 @@ class PoolTable(
             }
         )
 
+        m.launchAsyncThread {
+            val matchId = transaction(Databases.databaseNetwork) {
+                EightBallPoolGameMatches.insertAndGetId {
+                    it[EightBallPoolGameMatches.startedAt] = now
+
+                    it[EightBallPoolGameMatches.player1] = player1.uniqueId
+                    it[EightBallPoolGameMatches.player2] = player2.uniqueId
+
+                    it[EightBallPoolGameMatches.world] = gameOriginLocation.world.name
+                    it[EightBallPoolGameMatches.x] = gameOriginLocation.x
+                    it[EightBallPoolGameMatches.y] = gameOriginLocation.y
+                    it[EightBallPoolGameMatches.z] = gameOriginLocation.z
+                }
+
+            }
+
+            sparklySinuca.matchId.value = matchId.value
+        }
+
         this.activeSinuca = sparklySinuca
 
         sparklySinuca.startBallTrajectoryPreviewTask()
@@ -179,7 +210,7 @@ class PoolTable(
     }
 
     fun tearDown() {
-        cancelActive8BallPool()
+        cancelActive8BallPool(null, null, FinishReason.POOL_TABLE_TEAR_DOWN)
 
         // Actually... if we are tearing down the table, we want to remove everything
         for (entity in this.previousGameBalls) {
@@ -191,11 +222,26 @@ class PoolTable(
         this.activeSinuca = null
     }
 
-    fun cancelActive8BallPool() {
+    fun cancelActive8BallPool(winner: Player?, loser: Player?, reason: FinishReason) {
         val activeSinuca = this.activeSinuca
 
         if (activeSinuca != null) {
             activeSinuca.isPlaying = false
+
+            val endedAt = Instant.now()
+
+            m.launchAsyncThread {
+                val matchId = activeSinuca.matchId.filterNotNull().first()
+
+                transaction(Databases.databaseNetwork) {
+                    EightBallPoolGameMatches.update({ EightBallPoolGameMatches.id eq matchId }) {
+                        it[EightBallPoolGameMatches.winner] = winner?.uniqueId
+                        it[EightBallPoolGameMatches.loser] = loser?.uniqueId
+                        it[EightBallPoolGameMatches.finishReason] = reason
+                        it[EightBallPoolGameMatches.finishedAt] = endedAt
+                    }
+                }
+            }
 
             activeSinuca.gameStatusDisplay.remove()
 

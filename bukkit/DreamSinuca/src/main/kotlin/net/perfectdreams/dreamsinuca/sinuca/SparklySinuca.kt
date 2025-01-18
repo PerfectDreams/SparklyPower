@@ -1,5 +1,6 @@
 package net.perfectdreams.dreamsinuca.sinuca
 
+import kotlinx.coroutines.flow.*
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
 import net.perfectdreams.dreamcore.utils.DreamUtils
@@ -160,6 +161,10 @@ class SparklySinuca(
      * How many ticks have elapsed on this round
      */
     var roundElapsedTicks = 0
+
+    // This is saved in an async manner, which is why it is null, and the reason why it is a MutableStateFlow is to avoid issues where
+    // the match may end BEFORE tha matchId is retrieved
+    var matchId = MutableStateFlow<Long?>(null)
 
     fun updateGameStatusDisplay() {
         val s = (1200 - this.roundElapsedTicks)
@@ -705,7 +710,7 @@ class SparklySinuca(
                             }
                         )
 
-                        poolTable.cancelActive8BallPool()
+                        poolTable.cancelActive8BallPool(winner, this@SparklySinuca.playerTurn, FinishReason.PLAYER_TOOK_TOO_LONG)
                         return@launchMainThread
                     }
 
@@ -809,7 +814,7 @@ class SparklySinuca(
                                     }
                                 )
 
-                                poolTable.cancelActive8BallPool()
+                                poolTable.cancelActive8BallPool(null, null, FinishReason.EIGHT_BALL_POCKETED_DURING_BREAK)
                                 return@launchMainThread
                             }
 
@@ -839,7 +844,7 @@ class SparklySinuca(
                                     }
                                 )
 
-                                poolTable.cancelActive8BallPool()
+                                poolTable.cancelActive8BallPool(winner, sparklySinuca.playerTurn, FinishReason.POCKETED_EIGHT_BALL_BEFORE_POCKETING_OWN_BALLS)
                                 return@launchMainThread
                             }
 
@@ -905,7 +910,15 @@ class SparklySinuca(
                                     fireworkEffect
                                 )
 
-                                poolTable.cancelActive8BallPool()
+                                poolTable.cancelActive8BallPool(
+                                    winner,
+                                    loser,
+                                    if (cueball.pocketed) {
+                                        FinishReason.POCKETED_EIGHT_BALL_AND_CUEBALL_AT_THE_SAME_TIME
+                                    } else {
+                                        FinishReason.POCKETED_ALL_BALLS
+                                    }
+                                )
                                 return@launchMainThread
                             }
                         }

@@ -17,6 +17,7 @@ import net.perfectdreams.dreamsinuca.sinuca.ChalkColor
 import net.perfectdreams.dreamsinuca.sinuca.PoolTable
 import net.perfectdreams.dreamsinuca.sinuca.PoolTableData
 import net.perfectdreams.dreamsinuca.sinuca.PoolTableOrientation
+import net.perfectdreams.dreamsinuca.tables.EightBallPoolGameMatches
 import net.sparklypower.sparklypaper.event.entity.EntityGetProjectileForWeaponEvent
 import net.sparklypower.sparklypaper.event.entity.PreEntityShootBowEvent
 import org.bukkit.Bukkit
@@ -32,6 +33,10 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataType
+import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.Instant
 
 class DreamSinuca : KotlinPlugin(), Listener {
 	companion object {
@@ -82,6 +87,12 @@ class DreamSinuca : KotlinPlugin(), Listener {
 	}
 
 	override fun softEnable() {
+		transaction(Databases.databaseNetwork) {
+			SchemaUtils.createMissingTablesAndColumns(
+				EightBallPoolGameMatches
+			)
+		}
+
 		registerCommand(DreamSinucaCommand(this))
 		registerEvents(this)
 		registerEvents(SinucaEntityListener(this))

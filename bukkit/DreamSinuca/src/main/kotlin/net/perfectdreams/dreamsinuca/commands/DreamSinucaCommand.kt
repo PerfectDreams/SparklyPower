@@ -15,6 +15,7 @@ import net.perfectdreams.dreamsinuca.DreamSinuca
 import net.perfectdreams.dreamsinuca.sinuca.PoolTable
 import net.perfectdreams.dreamsinuca.sinuca.PoolTableData
 import net.perfectdreams.dreamsinuca.sinuca.PoolTableOrientation
+import net.perfectdreams.dreamsinuca.sinuca.PoolTableType
 import org.bukkit.Material
 import org.bukkit.entity.ItemDisplay
 import org.bukkit.inventory.ItemStack
@@ -33,7 +34,13 @@ class DreamSinucaCommand(val m: DreamSinuca) : SparklyCommandDeclarationWrapper 
 
     class SpawnSinucaExecutor(val m: DreamSinuca) : SparklyCommandExecutor() {
         inner class Options : CommandOptions() {
-            val orientation = greedyString("orientation") { context, builder ->
+            val poolTableType = word("pool_table_type") { context, builder ->
+                PoolTableType.values().forEach {
+                    builder.suggest(it.name.lowercase())
+                }
+            }
+
+            val orientation = word("orientation") { context, builder ->
                 PoolTableOrientation.values().forEach {
                     builder.suggest(it.name.lowercase())
                 }
@@ -43,6 +50,8 @@ class DreamSinucaCommand(val m: DreamSinuca) : SparklyCommandDeclarationWrapper 
         override val options = Options()
 
         override fun execute(context: CommandContext, args: CommandArguments) {
+            val poolTableType = PoolTableType.valueOf(args[options.poolTableType].uppercase())
+
             val orientation = PoolTableOrientation.valueOf(args[options.orientation].uppercase())
 
             val player = context.requirePlayer()
@@ -67,7 +76,7 @@ class DreamSinucaCommand(val m: DreamSinuca) : SparklyCommandDeclarationWrapper 
                 it.setItemStack(
                     ItemStack.of(Material.PAPER)
                         .meta<ItemMeta> {
-                            itemModel = SparklyNamespacedKey("pool_table")
+                            itemModel = SparklyNamespacedKey(poolTableType.model)
                         }
                 )
 

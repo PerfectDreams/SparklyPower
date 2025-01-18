@@ -11,6 +11,7 @@ import net.perfectdreams.dreamcore.utils.get
 import net.perfectdreams.dreamcustomitems.items.SparklyItemsRegistry
 import net.perfectdreams.dreamsinuca.DreamSinuca
 import net.perfectdreams.dreamsinuca.DreamSinuca.Companion.POOL_TABLE_ENTITY
+import net.perfectdreams.dreamsinuca.sinuca.FinishReason
 import net.perfectdreams.dreamsinuca.sinuca.PoolTable
 import net.perfectdreams.dreamsinuca.sinuca.PoolTableData
 import net.perfectdreams.dreamsinuca.sinuca.PoolTableOrientation
@@ -195,7 +196,7 @@ class SinucaEntityListener(val m: DreamSinuca) : Listener {
                             }
                         )
 
-                        sinuca.value.cancelActive8BallPool()
+                        sinuca.value.cancelActive8BallPool(activeSinuca.player2, e.player, FinishReason.PLAYER_TOO_FAR_AWAY)
                     }
                 }
 
@@ -226,7 +227,7 @@ class SinucaEntityListener(val m: DreamSinuca) : Listener {
                             }
                         )
 
-                        sinuca.value.cancelActive8BallPool()
+                        sinuca.value.cancelActive8BallPool(activeSinuca.player1, e.player, FinishReason.PLAYER_TOO_FAR_AWAY)
                     }
                 }
             }
@@ -245,7 +246,19 @@ class SinucaEntityListener(val m: DreamSinuca) : Listener {
 
             if (activeSinuca != null) {
                 if (activeSinuca.player1 == e.player || activeSinuca.player2 == e.player) {
-                    sinuca.value.cancelActive8BallPool()
+                    val winner = if (activeSinuca.player1 == e.player) {
+                        activeSinuca.player2
+                    } else {
+                        activeSinuca.player1
+                    }
+
+                    val loser = if (activeSinuca.player2 == e.player) {
+                        activeSinuca.player1
+                    } else {
+                        activeSinuca.player2
+                    }
+
+                    sinuca.value.cancelActive8BallPool(winner, loser, FinishReason.PLAYER_QUIT)
 
                     sinuca.value.sendSinucaMessageToPlayersNearIt(
                         textComponent {
