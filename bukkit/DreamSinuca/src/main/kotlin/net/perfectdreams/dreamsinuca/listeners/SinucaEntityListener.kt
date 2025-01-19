@@ -136,6 +136,9 @@ class SinucaEntityListener(val m: DreamSinuca) : Listener {
                         return
                     }
 
+                    if (sinuca.value.checkIfPlayerIsInAnotherGameAndSendMessageAndRemovePendingRequests(e.player))
+                        return
+
                     // Start a sinuca between the two players!
                     // Let's shuffle it a bit
                     val bothPlayers = listOf(e.player, pendingPlayer).shuffled().toMutableList()

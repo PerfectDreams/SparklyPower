@@ -306,28 +306,8 @@ class PoolTable(
      */
     fun joinQueue(player: Player) {
         // Are we already in another sinuca?
-        for (sinuca in m.poolTables) {
-            val activeSinuca = sinuca.value.activeSinuca
-
-            if (activeSinuca != null) {
-                val isInCurrentSinuca = activeSinuca.player1 == player || activeSinuca.player2 == player
-
-                if (isInCurrentSinuca) {
-                    sinuca.value.sendSinucaMessageToPlayer(
-                        player,
-                        textComponent {
-                            color(NamedTextColor.RED)
-                            content("Você já está em outro jogo de sinuca!")
-                        }
-                    )
-                    return
-                }
-            }
-
-            if (sinuca.value.pendingPlayer == player) {
-                sinuca.value.pendingPlayer = null
-            }
-        }
+        if (checkIfPlayerIsInAnotherGameAndSendMessageAndRemovePendingRequests(player))
+            return
 
         val hasStick = m.checkIfPlayerHasCueStickInInventory(player)
         if (!hasStick) {
@@ -350,5 +330,40 @@ class PoolTable(
                 content("Você entrou na fila desta mesa de sinuca! Quando outro player entrar, a partida irá começar!")
             }
         )
+    }
+
+    /**
+     * Checks if [player] is in another game and, if they are, we return true
+     *
+     * If the [player] is only in the pending queue, we remove them
+     *
+     * @return returns true if the player is in another game already, false if not
+     */
+    fun checkIfPlayerIsInAnotherGameAndSendMessageAndRemovePendingRequests(player: Player): Boolean {
+        // Are we already in another sinuca?
+        for (sinuca in m.poolTables) {
+            val activeSinuca = sinuca.value.activeSinuca
+
+            if (activeSinuca != null) {
+                val isInCurrentSinuca = activeSinuca.player1 == player || activeSinuca.player2 == player
+
+                if (isInCurrentSinuca) {
+                    sinuca.value.sendSinucaMessageToPlayer(
+                        player,
+                        textComponent {
+                            color(NamedTextColor.RED)
+                            content("Você já está em outro jogo de sinuca!")
+                        }
+                    )
+                    return true
+                }
+            }
+
+            if (sinuca.value.pendingPlayer == player) {
+                sinuca.value.pendingPlayer = null
+            }
+        }
+
+        return false
     }
 }
