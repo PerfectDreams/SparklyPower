@@ -134,7 +134,7 @@ abstract class AssinaResponse(
 
 	private fun hasSign(player: Player): Material? {
 		player.inventory.forEach {
-			if (it != null && it.type.name.endsWith("_SIGN")) {
+			if (it != null && it.type.name.endsWith("_SIGN") && !it.type.name.contains("HANGING")) {
 				return it.type
 			}
 		}
