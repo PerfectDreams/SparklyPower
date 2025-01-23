@@ -4,14 +4,12 @@ import me.ryanhamshire.GriefPrevention.ClaimPermission
 import me.ryanhamshire.GriefPrevention.GriefPrevention
 import net.perfectdreams.dreamcore.utils.*
 import net.perfectdreams.dreamcore.utils.extensions.clickedOnBlock
-import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamcore.utils.extensions.rightClick
 import net.perfectdreams.dreamcore.utils.scheduler.delayTicks
 import net.perfectdreams.dreamenderhopper.DreamEnderHopper
 import org.bukkit.*
 import org.bukkit.block.Block
 import org.bukkit.block.Container
-import org.bukkit.block.DoubleChest
 import org.bukkit.block.Hopper
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -19,15 +17,10 @@ import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
-import org.bukkit.event.inventory.CraftItemEvent
 import org.bukkit.event.inventory.InventoryMoveItemEvent
 import org.bukkit.event.inventory.InventoryPickupItemEvent
 import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.inventory.DoubleChestInventory
-import org.bukkit.inventory.FurnaceInventory
-import org.bukkit.inventory.Inventory
-import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
+import org.bukkit.inventory.*
 
 class EnderHopperListener(val m: DreamEnderHopper) : Listener {
     private val settingAHopperDestination = mutableMapOf<Player, Hopper>()
@@ -120,6 +113,7 @@ class EnderHopperListener(val m: DreamEnderHopper) : Listener {
                     e.player.sendMessage("§ePara alterar o destino, clique com botão direito em mim!")
                 }
             }
+
             is EnderHopperWithoutTarget -> {
                 if (e.rightClick) {
                     e.isCancelled = true
@@ -230,29 +224,53 @@ class EnderHopperListener(val m: DreamEnderHopper) : Listener {
         // We will compare the holder instead of the inventory because double chests have different inventories depending on where you clicked
         // This doesn't work for double chests!
         if (inventory != targetContainer.inventory) {
-            if (inventory is FurnaceInventory) {
-                val item = inventory.result
-                if (item != null && targetInventory.canHoldItem(item)) {
-                    atLeastOneItemWasTeleported = true
-
-                    // Add item to target
-                    targetInventory.addItem(item)
-
-                    // Remove item from the source inventory
-                    inventory.result = null
-                }
-            } else {
-                for ((index, item) in inventory.withIndex()) {
+            when (inventory) {
+                is FurnaceInventory -> {
+                    val item = inventory.result
                     if (item != null && targetInventory.canHoldItem(item)) {
                         atLeastOneItemWasTeleported = true
 
-                        // Remove item from the source inventory
-                        // We can't use removeItem because that causes issues if we are trying to add/remove an item with >= 33 quantity, if the source and the target
-                        // are the same container
-                        inventory.setItem(index, null)
-
                         // Add item to target
                         targetInventory.addItem(item)
+
+                        // Remove item from the source inventory
+                        inventory.result = null
+                    }
+                }
+
+                is BrewerInventory -> {
+                    // only teleport the result of the brewing
+                    val rawSlotResults = listOf(0, 1, 2)
+                    val results = rawSlotResults.mapNotNull { inventory.getItem(it) }
+
+                    if (results.isNotEmpty()) {
+                        results.forEach { item ->
+                            if (targetInventory.canHoldItem(item)) {
+                                atLeastOneItemWasTeleported = true
+
+                                // Add item to target
+                                targetInventory.addItem(item)
+
+                                // Remove item from the source inventory
+                                inventory.setItem(inventory.contents.indexOf(item), null)
+                            }
+                        }
+                    }
+                }
+
+                else -> {
+                    for ((index, item) in inventory.withIndex()) {
+                        if (item != null && targetInventory.canHoldItem(item)) {
+                            atLeastOneItemWasTeleported = true
+
+                            // Remove item from the source inventory
+                            // We can't use removeItem because that causes issues if we are trying to add/remove an item with >= 33 quantity, if the source and the target
+                            // are the same container
+                            inventory.setItem(index, null)
+
+                            // Add item to target
+                            targetInventory.addItem(item)
+                        }
                     }
                 }
             }
