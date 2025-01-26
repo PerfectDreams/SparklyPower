@@ -241,6 +241,7 @@ class DreamScoreboard : KotlinPlugin(), Listener {
 				player.hasPermission("group.admin") -> ChatColor.RED
 				player.hasPermission("group.moderador") -> ChatColor.DARK_AQUA
 				player.hasPermission("group.suporte") -> ChatColor.GOLD
+				player.hasPermission("group.developer") -> ChatColor.DARK_GREEN
 				player.hasPermission("group.vip++") -> ChatColor.AQUA
 				player.hasPermission("group.vip+") -> ChatColor.AQUA
 				player.hasPermission("group.vip") -> ChatColor.AQUA
@@ -252,6 +253,7 @@ class DreamScoreboard : KotlinPlugin(), Listener {
 				player.hasPermission("group.admin") -> "§4§l"
 				player.hasPermission("group.moderador") -> "§9§l"
 				player.hasPermission("group.suporte") -> "§6§l"
+				player.hasPermission("group.developer") -> "§2§l"
 				player.hasPermission("group.vip++") -> "§b"
 				player.hasPermission("group.vip+") -> "§b"
 				player.hasPermission("group.vip") -> "§b"
@@ -265,6 +267,7 @@ class DreamScoreboard : KotlinPlugin(), Listener {
 				player.hasPermission("group.admin") -> "$barrinhaColor[${rolePrefix}Admin$barrinhaColor] "
 				player.hasPermission("group.moderador") -> "$barrinhaColor[${rolePrefix}Moderador$barrinhaColor] "
 				player.hasPermission("group.suporte") -> "$barrinhaColor[${rolePrefix}Suporte$barrinhaColor] "
+				player.hasPermission("group.developer") -> "$barrinhaColor[${rolePrefix}Developer$barrinhaColor] "
 				player.hasPermission("group.vip++") -> "$barrinhaColor[${rolePrefix}VIP§6++$barrinhaColor] "
 				player.hasPermission("group.vip+") -> "$barrinhaColor[${rolePrefix}VIP§6+$barrinhaColor] "
 				player.hasPermission("group.vip") -> "$barrinhaColor[${rolePrefix}VIP$barrinhaColor] "

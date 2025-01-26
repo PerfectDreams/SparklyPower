@@ -1,5 +1,7 @@
 package net.perfectdreams.dreamvipstuff.commands
 
+import me.ryanhamshire.GriefPrevention.Claim
+import me.ryanhamshire.GriefPrevention.ClaimPermission
 import me.ryanhamshire.GriefPrevention.GriefPrevention
 import net.kyori.adventure.text.format.NamedTextColor
 import net.perfectdreams.dreamcore.DreamCore
@@ -11,6 +13,7 @@ import net.perfectdreams.dreamcore.utils.commands.declarations.sparklyCommand
 import net.perfectdreams.dreamcore.utils.commands.executors.SparklyCommandExecutor
 import net.perfectdreams.dreamterrainadditions.DreamTerrainAdditions
 import net.perfectdreams.dreamvipstuff.DreamVIPStuff
+import java.util.UUID
 
 class BackCommand(val m: DreamVIPStuff) : SparklyCommandDeclarationWrapper {
     override fun declaration() = sparklyCommand(listOf("back")) {
@@ -38,12 +41,16 @@ class BackCommand(val m: DreamVIPStuff) : SparklyCommandDeclarationWrapper {
             if (claim != null) {
                 val claimAdditions = additions.getOrCreateClaimAdditionsWithId(claim.id)
 
-                // trying to teleport to a claim that the player is banned from
-                if (claimAdditions.bannedPlayers.contains(player.name) || claimAdditions.blockAllPlayersExceptTrusted) {
-                    m.storedLocations.remove(player.uniqueId) // remove the stored location
+                val isPlayerBanned = claimAdditions.bannedPlayers.contains(player.name)
+                val isClaimWithBlockPlayersEnabled = claimAdditions.blockAllPlayersExceptTrusted
+                val isPlayerTrusted = claim.playerHasAnyPermission(player.uniqueId)
+                val isPlayerOwner = claim.ownerID == player.uniqueId
 
+                // trying to teleport to a claim that the player is banned from
+                // check if the player has trust or if the player is the owner of the claim
+                if ((isPlayerBanned || isClaimWithBlockPlayersEnabled) && !(isPlayerTrusted || isPlayerOwner)) {
                     return context.sendMessage {
-                        append("Não tem como você voltar para o terreno em que estava. O dono do terreno te baniu ou bloqueou o acesso de jogadores!") {
+                        append("Não há como você voltar ao terreno em que estava. O dono do terreno te baniu ou bloqueou o acesso de jogadores!") {
                             color(NamedTextColor.RED)
                         }
                     }
@@ -73,4 +80,6 @@ class BackCommand(val m: DreamVIPStuff) : SparklyCommandDeclarationWrapper {
             }
         }
     }
+
+    private fun Claim.playerHasAnyPermission(player: UUID) = ClaimPermission.entries.any { hasExplicitPermission(player, it) }
 }
