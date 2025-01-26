@@ -39,6 +39,21 @@ class AllCommandsCommand : SlashCommandDeclarationWrapper {
             // defer cuz it can take a while
             context.deferChannelMessage(true)
 
+            val mainLandGuild = context.pantufa.mainLandGuild
+            val sparklyPower = context.pantufa.config.sparklyPower
+            
+            val staffRole = mainLandGuild!!.getRoleById(sparklyPower.guild.staffRoleId)!!
+
+            if (!context.member.roles.contains(staffRole)) {
+                context.reply(true) {
+                    styled(
+                        "Ei! Você não tem permissão para usar este comando.",
+                        "<:pantufa_bonk:1028160322990776331>"
+                    )
+                }
+                return
+            }
+
             // let's support UUID... why not?
             val isAnUUID = try {
                 UUID.fromString(args[options.player])
