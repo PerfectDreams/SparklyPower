@@ -41,7 +41,7 @@ class AllCommandsCommand : SlashCommandDeclarationWrapper {
 
             val mainLandGuild = context.pantufa.mainLandGuild
             val sparklyPower = context.pantufa.config.sparklyPower
-            
+
             val staffRole = mainLandGuild!!.getRoleById(sparklyPower.guild.staffRoleId)!!
 
             if (!context.member.roles.contains(staffRole)) {

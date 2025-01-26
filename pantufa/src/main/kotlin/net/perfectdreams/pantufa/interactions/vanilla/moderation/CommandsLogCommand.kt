@@ -36,6 +36,8 @@ class CommandsLogCommand : SlashCommandDeclarationWrapper {
         override val options = Options()
 
         override suspend fun execute(context: UnleashedContext, args: SlashCommandArguments) {
+            context.deferChannelMessage(true)
+            
             val mainLandGuild = context.pantufa.mainLandGuild
             val sparklyPower = context.pantufa.config.sparklyPower
 
