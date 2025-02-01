@@ -192,6 +192,8 @@ class SignListener(val m: DreamLoja) : Listener {
         if (sign.lines[0] != "§8[§a§lVotar§8]")
             return
 
+        e.isCancelled = true
+
         m.launchAsyncThread {
             val voteSign = transaction(Databases.databaseNetwork) {
                 VoteSign.find {
@@ -245,7 +247,7 @@ class SignListener(val m: DreamLoja) : Listener {
                     shopVote.delete()
                 }
 
-                updateVoteSigns(e.player.uniqueId)
+                updateVoteSigns(voteSign.owner)
 
                 onMainThread {
                     e.player.sendTextComponent {
@@ -280,7 +282,6 @@ class SignListener(val m: DreamLoja) : Listener {
             updateVoteSigns(voteSign.owner)
 
             onMainThread {
-
                 e.player.sendTextComponent {
                     color(NamedTextColor.GREEN)
                     append(DreamLoja.PREFIX)
