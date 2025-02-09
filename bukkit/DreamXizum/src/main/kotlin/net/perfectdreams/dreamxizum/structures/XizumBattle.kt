@@ -69,7 +69,7 @@ class XizumBattle(
 
         val asPair = Pair(player, opponent)
 
-        announceToAllPlayersInXizumWorld(textComponent {
+        Bukkit.broadcast(textComponent {
             append(DreamXizum.prefix())
             appendSpace()
             append("§6A batalha entre ")
@@ -229,7 +229,7 @@ class XizumBattle(
             }
         }
 
-        announceToAllPlayersInXizumWorld(textComponent {
+        Bukkit.broadcast(textComponent {
             append(DreamXizum.prefix())
             appendSpace()
             append(prettyReason)
@@ -461,7 +461,7 @@ class XizumBattle(
             BattleListener.enderPearlCooldown.remove(it.uniqueId)
         }
 
-        announceToAllPlayersInXizumWorld(textComponent {
+        Bukkit.broadcast(textComponent {
             append(DreamXizum.prefix())
             appendSpace()
             append("§6A batalha entre ")
