@@ -235,6 +235,27 @@ class DreamCaixaSecreta : KotlinPlugin() {
 			)
 		)
 
+		prizes.add(
+			RandomItem(
+				SparklyItemsRegistry.getItemById("top_hat").createItemStack(),
+				chance
+			)
+		)
+
+		prizes.add(
+			RandomItem(
+				SparklyItemsRegistry.getItemById("chaves_hat").createItemStack(),
+				chance
+			)
+		)
+
+		prizes.add(
+			RandomItem(
+				SparklyItemsRegistry.getItemById("hatsune_miku_hair").createItemStack(),
+				chance
+			)
+		)
+
 		val ldt = LocalDateTime.now(ZoneId.of("America/Sao_Paulo"))
 
 		val startChristmas = LocalDateTime.of(2024, 12, 1, 0, 0, 0, 0)
