@@ -84,7 +84,9 @@ class TheaterMagicRecordingAnimation(
 
                             val activeEquipments = trackedActiveEquipments.getOrPut(entity) { mutableMapOf() }
                             for (equipmentSlot in PLAYER_EQUIPMENT_SLOTS) {
-                                val itemStack = player.equipment.getItem(equipmentSlot)
+                                // Should NEVER be null but due to Paper nullability changes it seems that this is borked
+                                // https://github.com/PaperMC/Paper/commit/61312fdb592766e3662c50a60ee23f55da6aac3e
+                                val itemStack = player.equipment!!.getItem(equipmentSlot)
                                 if (activeEquipments[equipmentSlot] != itemStack) {
                                     addAction(
                                         currentTick,
@@ -94,7 +96,7 @@ class TheaterMagicRecordingAnimation(
                                             if (itemStack.type == Material.AIR)
                                                 null
                                             else
-                                                ItemUtils.serializeItemToBase64(player.equipment.getItem(equipmentSlot))
+                                                ItemUtils.serializeItemToBase64(player.equipment!!.getItem(equipmentSlot))
                                         )
                                     )
 
