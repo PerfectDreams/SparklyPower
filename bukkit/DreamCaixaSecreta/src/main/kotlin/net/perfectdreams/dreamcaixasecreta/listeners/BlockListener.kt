@@ -57,7 +57,7 @@ class BlockListener(val m: DreamCaixaSecreta) : Listener {
 		if (caixaSecretaWorld == "Resources") {
 			val sonecasChance = chanceMultiplied(1.0, level)
 			val pesadelosChance = chanceMultiplied(0.1, level)
-			val nitroClassicChance = chanceMultiplied(0.01, level)
+			val nitroClassicChance = chanceMultiplied(0.008, level)
 
 			if (chance(sonecasChance)) {
 				val sonecas = DreamUtils.random.nextInt(25_000, 50_001)
