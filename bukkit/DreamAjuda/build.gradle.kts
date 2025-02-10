@@ -20,7 +20,7 @@ dependencies {
     compileOnly(project(":bukkit:DreamScoreboard"))
     compileOnly(project(":bukkit:DreamBedrockIntegrations"))
     compileOnly(project(":bukkit:DreamChat"))
-    compileOnly("com.github.TechFortress:GriefPrevention:194aaf4e8b") // Using commits instead of pinning a version because GP hasn't released a new version yet
+    compileOnly("com.github.GriefPrevention:GriefPrevention:885c0eeb1f") // Using commits instead of pinning a version because GP hasn't released a new version yet
 }
 
 kotlin {
