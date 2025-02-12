@@ -11,12 +11,12 @@ import net.perfectdreams.dreamcore.utils.*
 import net.perfectdreams.dreamcore.utils.commands.command
 import net.perfectdreams.dreamcore.utils.extensions.meta
 import net.perfectdreams.dreamcore.utils.scheduler.onAsyncThread
-import net.perfectdreams.dreamcore.utils.scheduler.onMainThread
+import net.perfectdreams.dreamcorreios.DreamCorreios
 import net.perfectdreams.dreammapwatermarker.commands.DreamMapMakerCommand
 import net.perfectdreams.dreammapwatermarker.commands.LoriCoolCardsAdminCommand
 import net.perfectdreams.dreammapwatermarker.commands.LoriCoolCardsCommand
+import net.perfectdreams.dreammapwatermarker.commands.PhotocopyCommand
 import net.perfectdreams.dreammapwatermarker.loricoolcards.LoriCoolCardsHandler
-
 import net.perfectdreams.dreammapwatermarker.map.ImgRenderer
 import net.perfectdreams.dreammapwatermarker.tables.LoriCoolCardsClaimedAlbums
 import net.perfectdreams.dreammapwatermarker.tables.LoriCoolCardsGeneratedMaps
@@ -25,9 +25,9 @@ import org.bukkit.Bukkit
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import org.bukkit.event.inventory.CraftItemEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryType
+import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.server.MapInitializeEvent
 import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
@@ -51,6 +51,9 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 		val MAP_CUSTOM_OWNER_KEY = SparklyNamespacedKey("map_custom_owner")
 		val PRINT_SHOP_REQUEST_ID_KEY = SparklyNamespacedKey("print_shop_request_id", PersistentDataType.LONG)
 
+		val pendingCopyRequests = mutableMapOf<UUID, CustomMapCopyRequest>()
+		val donePendingRequests = mutableSetOf<CustomMapCopyRequest>()
+
 		fun watermarkMap(itemStack: ItemStack, customOwner: UUID?) {
 			itemStack.meta<MapMeta> {
 				persistentDataContainer.set(LOCK_MAP_CRAFT_KEY, PersistentDataType.BYTE, 1)
@@ -62,16 +65,20 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 
 	val imageFolder = File(dataFolder, "img")
 	val loriCoolCardsHandler = LoriCoolCardsHandler(this)
+	lateinit var dreamCorreios: DreamCorreios
 	lateinit var config: DreamMapWatermarkerConfig
 	val semaphore = Semaphore(32)
 
 	override fun softEnable() {
 		super.softEnable()
 		config = Yaml.default.decodeFromString<DreamMapWatermarkerConfig>(this.getConfig().saveToString())
+		dreamCorreios = DreamCorreios.getInstance()
 
 		imageFolder.mkdirs()
 
 		registerCommand(DreamMapMakerCommand(this))
+		registerCommand(PhotocopyCommand(this))
+
 		if (config.generateLorittaFigurittas) {
 			registerCommand(LoriCoolCardsCommand(this))
 			registerCommand(LoriCoolCardsAdminCommand(this))
@@ -133,6 +140,9 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 
 	override fun softDisable() {
 		super.softDisable()
+
+		pendingCopyRequests.clear()
+		donePendingRequests.clear()
 	}
 
 	@EventHandler
@@ -161,6 +171,11 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 		}
 
 		// Bukkit.broadcastMessage("Moveu item ${event.destination}")
+	}
+
+	@EventHandler
+	fun onQuit(event: PlayerQuitEvent) {
+		pendingCopyRequests.remove(event.player.uniqueId)
 	}
 
 	/**
@@ -246,4 +261,13 @@ class DreamMapWatermarker : KotlinPlugin(), Listener {
 			}
 		}
 	}
+
+	data class CustomMapCopyRequest(
+		val player: UUID,
+		val requestId: Long,
+		val copies: Int,
+		var requestInMillis: Long,
+		val price: Long,
+		val mapIds: List<Int>,
+	)
 }

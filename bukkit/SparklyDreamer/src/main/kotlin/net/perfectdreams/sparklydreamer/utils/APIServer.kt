@@ -5,7 +5,6 @@ import com.google.common.util.concurrent.AtomicDouble
 import com.viaversion.viaversion.api.Via
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion
 import io.ktor.http.*
-import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.request.*
@@ -61,6 +60,7 @@ import javax.imageio.ImageIO
 class APIServer(private val plugin: SparklyDreamer) {
     companion object {
         private const val PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST = 15L
+        private const val PANTUFA_PRINT_SHOP_MAP_COPY_PESADELOS_COST = 6L
     }
     private val logger = plugin.logger
     private var server: EmbeddedServer<*, *>? = null
@@ -162,48 +162,53 @@ class APIServer(private val plugin: SparklyDreamer) {
                 post("/pantufa/prestart-pantufa-print-shop-maps") {
                     val dreamCashPlugin = Bukkit.getPluginManager().getPlugin("DreamCash")?.let { if (it.isEnabled) it else null }
 
-                    if (dreamCashPlugin != null) {
-                        // Okay, so the plugin is enabled and ready to rock!
-                        val request = Json.decodeFromString<PrestartPantufaPrintShopCustomMapsRequest>(call.receiveText())
-
-                        // Check if the user has enough pesadelos
-                        val response = transaction(Databases.databaseNetwork) {
-                            val requesterUniqueId = UUID.fromString(request.requestedById)
-                            val priceOfAllTheMaps = PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST * request.amountOfMapsToBeGenerated
-
-                            // Do we have enough money?
-                            val pesadelos = Cashes.selectAll()
-                                .where { Cashes.uniqueId eq requesterUniqueId }
-                                .limit(1)
-                                .firstOrNull()
-                                ?.get(Cashes.cash)
-                                ?: return@transaction PrestartPantufaPrintShopCustomMapsResponse.NotEnoughPesadelos(
-                                    PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST,
-                                    priceOfAllTheMaps
-                                )
-
-                            if (priceOfAllTheMaps > pesadelos)
-                                return@transaction PrestartPantufaPrintShopCustomMapsResponse.NotEnoughPesadelos(
-                                    PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST,
-                                    priceOfAllTheMaps
-                                )
-
-                            return@transaction PrestartPantufaPrintShopCustomMapsResponse.Success(
-                                PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST,
-                                priceOfAllTheMaps
-                            )
-                        }
-
-                        call.respondText(
-                            Json.encodeToString<PrestartPantufaPrintShopCustomMapsResponse>(response),
-                            ContentType.Application.Json
-                        )
-                    } else {
+                    // First we need to check if the plugin is enabled
+                    if (dreamCashPlugin == null) {
                         call.respondText(
                             Json.encodeToString<PrestartPantufaPrintShopCustomMapsResponse>(PrestartPantufaPrintShopCustomMapsResponse.PluginUnavailable),
                             ContentType.Application.Json
                         )
+                        return@post
                     }
+
+                    // Okay, so the plugin is enabled and ready to rock!
+                    val request = Json.decodeFromString<PrestartPantufaPrintShopCustomMapsRequest>(call.receiveText())
+
+                    // Check if the user has enough pesadelos
+                    val response = transaction(Databases.databaseNetwork) {
+                        val requesterUniqueId = UUID.fromString(request.requestedById)
+                        val priceOfAllTheMaps = PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST * request.amountOfMapsToBeGenerated
+                        val priceOfCopies = if (request.copies > 0) (PANTUFA_PRINT_SHOP_MAP_COPY_PESADELOS_COST * request.amountOfMapsToBeGenerated) * request.copies else 0
+                        val totalPrice = priceOfAllTheMaps + priceOfCopies
+
+                        // Do we have enough money?
+                        val pesadelos = Cashes.selectAll()
+                            .where { Cashes.uniqueId eq requesterUniqueId }
+                            .limit(1)
+                            .firstOrNull()
+                            ?.get(Cashes.cash)
+                            ?: return@transaction PrestartPantufaPrintShopCustomMapsResponse.NotEnoughPesadelos(
+                                PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST,
+                                totalPrice
+                            )
+
+
+                        if (totalPrice > pesadelos)
+                            return@transaction PrestartPantufaPrintShopCustomMapsResponse.NotEnoughPesadelos(
+                                PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST,
+                                totalPrice
+                            )
+
+                        return@transaction PrestartPantufaPrintShopCustomMapsResponse.Success(
+                            PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST,
+                            totalPrice
+                        )
+                    }
+
+                    call.respondText(
+                        Json.encodeToString<PrestartPantufaPrintShopCustomMapsResponse>(response),
+                        ContentType.Application.Json
+                    )
                 }
 
                 post("/pantufa/create-pantufa-print-shop-maps") {
@@ -260,7 +265,21 @@ class APIServer(private val plugin: SparklyDreamer) {
                                 .map { ImageIO.read(Base64.getDecoder().decode(it).inputStream()) }
 
                             val priceOfAllTheMaps = PANTUFA_PRINT_SHOP_MAP_PESADELOS_COST * images.size
-                            if (priceOfAllTheMaps > pesadelos)
+
+                            val copies: Int = if (customMap[PlayerPantufaPrintShopCustomMaps.copies] == null)
+                                0
+                            else
+                                customMap[PlayerPantufaPrintShopCustomMaps.copies]!!
+
+                            val priceOfCopies = if (copies > 0) {
+                                (PANTUFA_PRINT_SHOP_MAP_COPY_PESADELOS_COST * images.size) * copies
+                            } else {
+                                0
+                            }
+
+                            val totalPrice = priceOfAllTheMaps + priceOfCopies
+
+                            if (totalPrice > pesadelos)
                                 return@transaction GeneratePantufaPrintShopCustomMapsResponse.NotEnoughPesadelos
 
                             // Ouch, main thread access, this will freeze the transaction for a bit
@@ -296,10 +315,26 @@ class APIServer(private val plugin: SparklyDreamer) {
                                 }
 
                                 // Add the items to the user's caixa postal
-                                dreamCorreiosPlugin.addItem(
-                                    requesterUniqueId,
-                                    *mapsToBeGiven.toTypedArray()
-                                )
+                                if (copies > 0) {
+                                    // add the original
+                                    dreamCorreiosPlugin.addItem(
+                                        requesterUniqueId,
+                                        *mapsToBeGiven.toTypedArray()
+                                    )
+
+                                    // and the copies
+                                    for (i in 0 until copies) {
+                                        dreamCorreiosPlugin.addItem(
+                                            requesterUniqueId,
+                                            *mapsToBeGiven.toTypedArray()
+                                        )
+                                    }
+                                } else {
+                                    dreamCorreiosPlugin.addItem(
+                                        requesterUniqueId,
+                                        *mapsToBeGiven.toTypedArray()
+                                    )
+                                }
 
                                 mapIds
                             }
@@ -322,7 +357,7 @@ class APIServer(private val plugin: SparklyDreamer) {
                             // Charge the player!
                             Cashes.update({ Cashes.uniqueId eq customMap[PlayerPantufaPrintShopCustomMaps.requestedBy] }) {
                                 with(SqlExpressionBuilder) {
-                                    it[Cashes.cash] = Cashes.cash - priceOfAllTheMaps
+                                    it[Cashes.cash] = Cashes.cash - totalPrice
                                 }
                             }
 
@@ -330,7 +365,7 @@ class APIServer(private val plugin: SparklyDreamer) {
 
                             return@transaction GeneratePantufaPrintShopCustomMapsResponse.Success(
                                 customMap[PlayerPantufaPrintShopCustomMaps.requestedBy].toString(),
-                                priceOfAllTheMaps
+                                totalPrice
                             )
                         }
 

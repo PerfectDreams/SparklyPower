@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 class PrestartPantufaPrintShopCustomMapsRequest(
     val requestedById: String,
-    val amountOfMapsToBeGenerated: Int
+    val amountOfMapsToBeGenerated: Int,
+    val copies: Int
 )
 
 @Serializable

@@ -74,6 +74,8 @@ class CustomMapCommand(val m: PantufaBot) : SlashCommandDeclarationWrapper {
                 choice("Esticar a imagem até preencher a imagem", ResizeMethod.SCALE_TO_FIT.name)
                 choice("Ajustar a imagem até ela conter dentro da imagem", ResizeMethod.CONTAIN.name)
             }
+
+            val copies = optionalInteger("copies", "Quantas cópias do mapa você deseja")
         }
 
         override val options = Options()
@@ -82,6 +84,16 @@ class CustomMapCommand(val m: PantufaBot) : SlashCommandDeclarationWrapper {
             val attachment = args[options.image]
             val size = args[options.size]
             val resizeMethod = ResizeMethod.valueOf(args[options.resizeMethod])
+            val copies = args[options.copies] ?: 0
+
+            if (copies > 32) {
+                context.reply(true) {
+                    styled(
+                        "Quantidade de cópias inválida! Máximo de 32 cópias!"
+                    )
+                }
+                return
+            }
 
             context.deferChannelMessage(true)
 
@@ -148,8 +160,6 @@ class CustomMapCommand(val m: PantufaBot) : SlashCommandDeclarationWrapper {
             } else {
                 null
             }
-
-            // println("skinData: $skinData")
 
             var playerSkin: BufferedImage? = null
             var isPlayerSkinSlim = false
@@ -359,7 +369,7 @@ class CustomMapCommand(val m: PantufaBot) : SlashCommandDeclarationWrapper {
                 PantufaBot.http.post("${m.config.sparklyPower.server.sparklyPowerSurvival.apiUrl.removeSuffix("/")}/pantufa/prestart-pantufa-print-shop-maps") {
                     setBody(
                         Json.encodeToString(
-                            PrestartPantufaPrintShopCustomMapsRequest(account.uniqueId.toString(), amountOfImagesOnItemFrames)
+                            PrestartPantufaPrintShopCustomMapsRequest(account.uniqueId.toString(), amountOfImagesOnItemFrames, copies)
                         )
                     )
                 }.bodyAsText()
@@ -395,6 +405,11 @@ class CustomMapCommand(val m: PantufaBot) : SlashCommandDeclarationWrapper {
                                 Emotes.PantufaHi
                             )
                         }
+
+                        styled(
+                            "**Cópias:** $copies",
+                            Emotes.PantufaLurk
+                        )
 
                         styled(
                             "**Preço:** ${Emotes.Pesadelos} ${prestartResponse.totalCost} pesadelos",
@@ -440,6 +455,7 @@ class CustomMapCommand(val m: PantufaBot) : SlashCommandDeclarationWrapper {
                                                 Base64.getEncoder().encodeToString(itemFrameImageAsByteArray)
                                             }
                                         it[PlayerPantufaPrintShopCustomMaps.requestedAt] = Instant.now()
+                                        it[PlayerPantufaPrintShopCustomMaps.copies] = copies
                                     }
                                 }
 
@@ -452,6 +468,10 @@ class CustomMapCommand(val m: PantufaBot) : SlashCommandDeclarationWrapper {
 
                                         styled(
                                             "**Tamanho da imagem:** ${targetItemFrameWidth}x${targetItemFrameHeight} ($amountOfImagesOnItemFrames mapas)"
+                                        )
+
+                                        styled(
+                                            "**Cópias:** $copies"
                                         )
 
                                         styled(
