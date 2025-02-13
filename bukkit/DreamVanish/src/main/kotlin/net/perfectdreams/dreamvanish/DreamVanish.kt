@@ -19,8 +19,8 @@ class DreamVanish : KotlinPlugin() {
 
 		INSTANCE = this
 
-		registerCommand(QueroTrabalharCommand)
-		registerCommand(VanishCommand)
+		registerCommand(QueroTrabalharCommand(this))
+		registerCommand(VanishCommand(this))
 
 		registerEvents(PlayerListener(this))
 
