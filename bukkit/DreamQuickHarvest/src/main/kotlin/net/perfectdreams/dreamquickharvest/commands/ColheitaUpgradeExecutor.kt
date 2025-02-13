@@ -50,7 +50,7 @@ class ColheitaUpgradeExecutor(val m: DreamQuickHarvest) : SparklyCommandExecutor
                             item = ItemStack(upgrade.material)
                                 .rename("§e+${upgrade.energy} energia§a por ${upgrade.pesadelos} pesadelos")
                                 .lore(
-                                    "§7Aumenta a sua energia, o upgrade dura um mês!",
+                                    "§7Aumenta a sua energia, o upgrade dura 30 dias!",
                                     "§7",
                                     "§7Quanto mais energias ativas você possui, mais caro fica",
                                     "§7o preço para fazer upgrade."
@@ -81,8 +81,8 @@ class ColheitaUpgradeExecutor(val m: DreamQuickHarvest) : SparklyCommandExecutor
                                                     it[PlayerQuickHarvestUpgrades.energy] = upgrade.energy
                                                     it[PlayerQuickHarvestUpgrades.boughtAt] = now.toJavaInstant()
                                                     it[PlayerQuickHarvestUpgrades.expiresAt] = now.plus(
-                                                        1,
-                                                        DateTimeUnit.MONTH,
+                                                        30,
+                                                        DateTimeUnit.DAY,
                                                         TimeZone.of("America/Sao_Paulo")
                                                     ).toJavaInstant()
                                                 }
