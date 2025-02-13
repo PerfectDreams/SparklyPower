@@ -1,7 +1,7 @@
-package net.sparklypower.tables
+package net.perfectdreams.dreammapwatermarker.tables
 
+import net.perfectdreams.dreamcore.utils.exposed.jsonb
 import net.perfectdreams.exposedpowerutils.sql.javatime.timestampWithTimeZone
-import net.perfectdreams.exposedpowerutils.sql.jsonb
 import org.jetbrains.exposed.dao.id.LongIdTable
 
 object PlayerPantufaPrintShopCustomMaps : LongIdTable() {

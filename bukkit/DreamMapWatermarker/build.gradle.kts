@@ -16,6 +16,7 @@ dependencies {
     compileOnly(project(":bukkit:DreamCore"))
     compileOnly(project(":bukkit:DreamMochilas"))
     compileOnly(project(":bukkit:DreamCorreios"))
+    compileOnly(project(":bukkit:DreamCash"))
 }
 
 kotlin {
