@@ -12,6 +12,7 @@ import net.perfectdreams.pantufa.dao.Transaction
 import net.perfectdreams.pantufa.network.Databases
 import net.perfectdreams.pantufa.tables.Transactions
 import net.perfectdreams.pantufa.utils.*
+import net.perfectdreams.pantufa.utils.extensions.await
 import net.perfectdreams.pantufa.utils.extensions.username
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -319,7 +320,7 @@ object TransactionsUtils {
                         val asSonhos = currency.format(transaction.amount / 2.0, "sonhos")
 
                         // This command wouldn't work if the extra (user ID) is null, so we can safely assume it's not null
-                        val userInfo = m.jda.getUserById(transaction.extra!!)!!
+                        val userInfo = m.jda.retrieveUserById(transaction.extra!!).complete()
 
                         val output = if (sentFromLoritta) {
                             "Transferiu $asSonhos da Loritta pela conta `${userInfo.name} (${transaction.extra})` para o SparklyPower ($formattedAmount)"
